@@ -17,6 +17,9 @@ interface PriceContextType {
   isConnected: boolean;
   error: string | null;
   trackSymbol: (symbol: string) => void;
+  retry: () => void;
+  failedAttempts: number;
+  lastError: Error | null;
 }
 
 const PriceContext = createContext<PriceContextType | undefined>(undefined);
@@ -26,6 +29,8 @@ export function PriceProvider({ children }: { children: ReactNode }) {
   const [prices, setPrices] = useState<Map<string, LivePrice>>(new Map());
   const [isConnected, setIsConnected] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lastError, setLastError] = useState<Error | null>(null);
 
   // Use ref to track symbols - no re-renders when symbols change
   const trackedSymbolsRef = useRef<Set<string>>(new Set(['BTC', 'ETH']));
@@ -35,17 +40,24 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     trackedSymbolsRef.current.add(symbol);
   }, []);
 
-  // Main fetch function
+  // Main fetch function with enhanced error handling
   const fetchPrices = async () => {
     const symbols = Array.from(trackedSymbolsRef.current);
 
     if (symbols.length === 0) return;
 
     try {
-      const response = await fetch(`/api/prices?symbols=${symbols.join(',')}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(`/api/prices?symbols=${symbols.join(',')}`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -69,12 +81,36 @@ export function PriceProvider({ children }: { children: ReactNode }) {
 
       setIsConnected(true);
       setError(null);
+      setFailedAttempts(0);
+      setLastError(null);
     } catch (err) {
-      setError(`Failed to fetch prices`);
+      const error = err instanceof Error ? err : new Error(String(err));
+
+      // Determine error message
+      let errorMessage = 'Unable to fetch live prices';
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timeout - check your connection';
+      } else if (error instanceof TypeError) {
+        errorMessage = 'Network error - no internet connection';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = `Server error: ${error.message}`;
+      }
+
+      setError(errorMessage);
       setIsConnected(false);
-      console.error('Price fetch error:', err);
+      setFailedAttempts((prev) => prev + 1);
+      setLastError(error);
+      console.error('Price fetch error:', error);
     }
   };
+
+  // Retry function
+  const retry = useCallback(() => {
+    setFailedAttempts(0);
+    setLastError(null);
+    setError(null);
+    fetchPrices();
+  }, []);
 
   // Set up polling - only once on mount
   useEffect(() => {
@@ -98,7 +134,10 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     isConnected,
     error,
     trackSymbol,
-  }), [prices, getPrice, isConnected, error, trackSymbol]);
+    retry,
+    failedAttempts,
+    lastError,
+  }), [prices, getPrice, isConnected, error, trackSymbol, retry, failedAttempts, lastError]);
 
   return (
     <PriceContext.Provider value={value}>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import PositionForm from '@/components/PositionForm';
 import PositionAdjustment from '@/components/PositionAdjustment';
 import PriceIndicator from '@/components/PriceIndicator';
+import OfflineFallback from '@/components/OfflineFallback';
 import { Position } from '@/types/position';
 import { usePositionStorage } from '@/hooks/usePositionStorage';
 
@@ -37,6 +38,7 @@ export default function Home() {
 
   return (
     <>
+      <OfflineFallback />
       <PriceIndicator />
       <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-6 sm:py-8">
         <div className="w-full max-w-2xl">
