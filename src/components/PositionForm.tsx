@@ -77,7 +77,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="card-bg p-8 space-y-6">
+    <form onSubmit={handleSubmit} className="card-bg p-4 sm:p-8 space-y-6">
       <h2 className="text-2xl font-bold mb-6">Enter Your Position</h2>
 
       {error && (

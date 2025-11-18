@@ -36,9 +36,11 @@ input:focus {
   background-color: #0f172a;
   border: 1px solid #334155;
   color: #e2e8f0;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-radius: 6px;
   transition: all 0.3s ease;
+  font-size: 16px; /* Prevents zoom on iOS */
+  min-height: 44px; /* Touch target minimum */
 }
 
 .input-field:focus {
@@ -76,4 +78,44 @@ input:focus {
 
 .text-neutral {
   color: #6366f1;
+}
+
+/* Range input styling for better mobile experience */
+input[type='range'] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #a78bfa;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #a78bfa;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  background: #374151;
+  height: 8px;
+  border-radius: 4px;
+}
+
+input[type='range']::-moz-range-track {
+  background: #374151;
+  height: 8px;
+  border-radius: 4px;
 }

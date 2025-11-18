@@ -38,13 +38,13 @@ export default function Home() {
   return (
     <>
       <PriceIndicator />
-      <div className="flex items-center justify-center min-h-screen px-4 py-8">
+      <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-6 sm:py-8">
         <div className="w-full max-w-2xl">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-neutral to-blue-400 bg-clip-text text-transparent">
+          <div className="text-center mb-8 sm:mb-12">
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-neutral to-blue-400 bg-clip-text text-transparent">
               Perpulator
             </h1>
-            <p className="text-gray-400 text-lg">
+            <p className="text-gray-400 text-base sm:text-lg">
               Perpetual Futures Position Calculator
             </p>
           </div>

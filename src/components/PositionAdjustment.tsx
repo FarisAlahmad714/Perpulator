@@ -177,9 +177,9 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
   return (
     <div className="space-y-6">
       {/* Original Position Summary */}
-      <div className="card-bg p-6">
+      <div className="card-bg p-4 sm:p-6">
         <h3 className="text-lg font-bold mb-4">Original Position</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-400">Entry Price</p>
             <p className="text-xl font-bold">${formatNumber(position.entryPrice)}</p>
@@ -241,7 +241,7 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
       </div>
 
       {/* Exit Strategy: Partial TP */}
-      <div className="card-bg p-6">
+      <div className="card-bg p-4 sm:p-6">
         <h3 className="text-lg font-bold mb-4">Exit Strategy</h3>
 
         {/* Take Profit Price */}
@@ -274,7 +274,10 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
                 step="5"
                 value={partialTPPercent}
                 onChange={(e) => setPartialTPPercent(Number(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                className="w-full h-3 sm:h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                style={{
+                  WebkitAppearance: 'slider-horizontal',
+                }}
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
                 <span>0%</span>
@@ -284,7 +287,7 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
             </div>
 
             {partialTPMetrics && (
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div className="bg-green-900/20 p-3 rounded border border-green-500/30">
                   <p className="text-gray-400 text-xs">Profit from {partialTPPercent}%</p>
                   <p className="text-lg font-bold text-profit">${formatNumber(partialTPMetrics.profitFromTP)}</p>
@@ -314,7 +317,7 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
       </div>
 
       {/* Adjustment Form */}
-      <div className="card-bg p-6">
+      <div className="card-bg p-4 sm:p-6">
         <h3 className="text-lg font-bold mb-4">Adjust Position</h3>
 
         {/* Type Selection */}
@@ -400,10 +403,10 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
 
       {/* Calculated Results */}
       {calculated && (
-        <div className="card-bg p-6">
+        <div className="card-bg p-4 sm:p-6">
           <h3 className="text-lg font-bold mb-4">New Position Metrics</h3>
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {/* Average Entry Price */}
             <div className="bg-gray-700/30 p-4 rounded-lg">
               <p className="text-sm text-gray-400 mb-1">Avg Entry Price</p>
@@ -542,7 +545,7 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
 
       {/* Empty State */}
       {!calculated && (
-        <div className="card-bg p-8 text-center">
+        <div className="card-bg p-6 sm:p-8 text-center">
           <AlertCircle className="mx-auto mb-3 text-gray-500" size={32} />
           <p className="text-gray-400">
             Enter an adjustment price and size to see your new position metrics
