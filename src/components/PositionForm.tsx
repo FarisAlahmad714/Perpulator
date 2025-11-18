@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Position } from '@/types/position';
 import { getSupportedCryptos } from '@/lib/cryptoApi';
 import { usePrice } from '@/contexts/PriceContext';
+import { validatePositionInput, getErrorMessage, ValidationError } from '@/utils/validation';
 import { AlertCircle, TrendingUp } from 'lucide-react';
 
 interface PositionFormProps {
@@ -20,6 +21,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [useCoinsInput, setUseCoinsInput] = useState(false);
 
   // Get live price from context
@@ -42,10 +44,20 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setValidationErrors([]);
 
-    // Validation
-    if (!entryPrice || !positionSizeUSD) {
-      setError('Please fill in all required fields');
+    // Run validation
+    const errors = validatePositionInput(
+      entryPrice,
+      positionSizeUSD,
+      leverage,
+      stopLoss,
+      takeProfit
+    );
+
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setError('Please fix the errors below');
       return;
     }
 
@@ -149,8 +161,17 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
           value={entryPrice}
           onChange={(e) => setEntryPrice(e.target.value)}
           placeholder="e.g., 45000"
-          className="input-field w-full"
+          className={`input-field w-full ${
+            getErrorMessage(validationErrors, 'entryPrice')
+              ? 'border-red-500 focus:border-red-500'
+              : ''
+          }`}
         />
+        {getErrorMessage(validationErrors, 'entryPrice') && (
+          <p className="text-xs text-red-400 mt-1">
+            {getErrorMessage(validationErrors, 'entryPrice')}
+          </p>
+        )}
       </div>
 
       {/* Position Size */}
@@ -201,8 +222,17 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
           value={leverage}
           onChange={(e) => setLeverage(e.target.value)}
           placeholder="e.g., 5"
-          className="input-field w-full"
+          className={`input-field w-full ${
+            getErrorMessage(validationErrors, 'leverage')
+              ? 'border-red-500 focus:border-red-500'
+              : ''
+          }`}
         />
+        {getErrorMessage(validationErrors, 'leverage') && (
+          <p className="text-xs text-red-400 mt-1">
+            {getErrorMessage(validationErrors, 'leverage')}
+          </p>
+        )}
       </div>
 
       {/* Stop Loss */}

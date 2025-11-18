@@ -1,22 +1,37 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PositionForm from '@/components/PositionForm';
 import PositionAdjustment from '@/components/PositionAdjustment';
 import PriceIndicator from '@/components/PriceIndicator';
 import { Position } from '@/types/position';
+import { usePositionStorage } from '@/hooks/usePositionStorage';
 
 export default function Home() {
   const [position, setPosition] = useState<Position | null>(null);
   const [showAdjustment, setShowAdjustment] = useState(false);
+  const { savePosition, loadPosition, clearPosition, isMounted } = usePositionStorage();
+
+  // Load position from localStorage on mount
+  useEffect(() => {
+    if (isMounted) {
+      const savedPosition = loadPosition();
+      if (savedPosition) {
+        setPosition(savedPosition);
+        setShowAdjustment(true);
+      }
+    }
+  }, [isMounted, loadPosition]);
 
   const handlePositionSubmit = (newPosition: Position) => {
     setPosition(newPosition);
+    savePosition(newPosition);
     setShowAdjustment(true);
   };
 
   const handleReset = () => {
     setPosition(null);
+    clearPosition();
     setShowAdjustment(false);
   };
 
