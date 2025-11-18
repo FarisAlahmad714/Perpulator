@@ -1,0 +1,26 @@
+import type { Metadata } from 'next';
+import './globals.css';
+import { Providers } from './providers';
+
+export const metadata: Metadata = {
+  title: 'Perpulator - Perpetual Futures Position Calculator',
+  description: 'Calculate position sizes and risk/reward ratios for crypto perpetual trading',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>
+          <main className="min-h-screen bg-gradient-to-br from-trading-dark via-trading-dark to-gray-900 text-white">
+            {children}
+          </main>
+        </Providers>
+      </body>
+    </html>
+  );
+}
