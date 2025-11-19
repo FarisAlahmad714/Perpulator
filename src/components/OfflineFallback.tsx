@@ -7,10 +7,12 @@ import { useEffect, useState } from 'react';
 export default function OfflineFallback() {
   const { isConnected, error, retry, failedAttempts } = usePriceContext();
   const [isNetworkOnline, setIsNetworkOnline] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Check browser network status
+  // Check browser network status - only after mount
   useEffect(() => {
-    setIsNetworkOnline(navigator.onLine);
+    setIsMounted(true);
+    setIsNetworkOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
     const handleOnline = () => setIsNetworkOnline(true);
     const handleOffline = () => setIsNetworkOnline(false);
@@ -24,8 +26,8 @@ export default function OfflineFallback() {
     };
   }, []);
 
-  // Only show if prices are not connected
-  if (isConnected) {
+  // Only show if prices are not connected and component is mounted
+  if (isConnected || !isMounted) {
     return null;
   }
 

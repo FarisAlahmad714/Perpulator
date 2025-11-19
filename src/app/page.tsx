@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import PositionForm from '@/components/PositionForm';
 import PositionAdjustment from '@/components/PositionAdjustment';
 import PriceIndicator from '@/components/PriceIndicator';
-import OfflineFallback from '@/components/OfflineFallback';
 import { Position } from '@/types/position';
 import { usePositionStorage } from '@/hooks/usePositionStorage';
 
@@ -38,15 +37,14 @@ export default function Home() {
 
   return (
     <>
-      <OfflineFallback />
       <PriceIndicator />
-      <div className="flex items-center justify-center min-h-screen px-3 sm:px-4 py-6 sm:py-8">
+      <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 py-12 sm:py-16">
         <div className="w-full max-w-2xl">
-          <div className="text-center mb-8 sm:mb-12">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-neutral to-blue-400 bg-clip-text text-transparent">
+          <div className="text-center mb-20 sm:mb-24">
+            <h1 className="text-4xl sm:text-5xl font-700 mb-4 text-neutral">
               Perpulator
             </h1>
-            <p className="text-gray-400 text-base sm:text-lg">
+            <p className="text-gray-400 text-base sm:text-lg tracking-wide">
               Perpetual Futures Position Calculator
             </p>
           </div>
@@ -54,11 +52,11 @@ export default function Home() {
           {!showAdjustment ? (
             <PositionForm onSubmit={handlePositionSubmit} />
           ) : position ? (
-            <div className="space-y-4">
+            <div className="space-y-8">
               <PositionAdjustment position={position} />
               <button
                 onClick={handleReset}
-                className="w-full py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-semibold transition-all duration-300"
+                className="btn-primary w-full"
               >
                 Enter New Position
               </button>

@@ -5,7 +5,7 @@ import { Position } from '@/types/position';
 import { getSupportedCryptos } from '@/lib/cryptoApi';
 import { usePrice } from '@/contexts/PriceContext';
 import { validatePositionInput, getErrorMessage, ValidationError } from '@/utils/validation';
-import { AlertCircle, TrendingUp } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 interface PositionFormProps {
   onSubmit: (position: Position) => void;
@@ -20,11 +20,10 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const [leverage, setLeverage] = useState('1');
   const [stopLoss, setStopLoss] = useState('');
   const [takeProfit, setTakeProfit] = useState('');
-  const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [useCoinsInput, setUseCoinsInput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get live price from context
   const livePrice = usePrice(symbol);
   const supportedCryptos = getSupportedCryptos();
 
@@ -43,10 +42,8 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setValidationErrors([]);
 
-    // Run validation
     const errors = validatePositionInput(
       entryPrice,
       positionSizeUSD,
@@ -57,9 +54,10 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
 
     if (errors.length > 0) {
       setValidationErrors(errors);
-      setError('Please fix the errors below');
       return;
     }
+
+    setIsSubmitting(true);
 
     const position: Position = {
       symbol: symbol.toUpperCase(),
@@ -73,27 +71,24 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
       timestamp: new Date(),
     };
 
-    onSubmit(position);
+    // Simulate submit animation
+    setTimeout(() => {
+      onSubmit(position);
+      setIsSubmitting(false);
+    }, 300);
   };
 
+  const hasError = (field: string) => !!getErrorMessage(validationErrors, field);
+
   return (
-    <form onSubmit={handleSubmit} className="card-bg p-4 sm:p-8 space-y-6">
-      <h2 className="text-2xl font-bold mb-6">Enter Your Position</h2>
-
-      {error && (
-        <div className="flex items-center gap-2 bg-red-900/20 border border-red-500 rounded-lg p-4">
-          <AlertCircle size={20} className="text-red-500" />
-          <span className="text-red-400">{error}</span>
-        </div>
-      )}
-
-      {/* Symbol Selection */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Cryptocurrency</label>
+    <form onSubmit={handleSubmit} className="w-full py-8 sm:py-12">
+      {/* Crypto Selector */}
+      <div className="mb-16 sm:mb-20">
+        <label className="text-label mb-6 block">Select Asset</label>
         <select
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          className="input-field w-full"
+          className="input-field text-2xl sm:text-3xl font-600"
         >
           {supportedCryptos.map((crypto) => (
             <option key={crypto} value={crypto}>
@@ -103,90 +98,52 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         </select>
       </div>
 
-      {/* Current Price Display */}
+      {/* Live Price Display */}
       {livePrice?.price && (
-        <div className="bg-blue-900/20 border border-blue-500 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400">Current Price</span>
-            <div className="flex items-center gap-2">
-              <TrendingUp size={18} className="text-blue-400" />
-              <span className="text-xl font-bold text-blue-400">
-                ${livePrice.price.toFixed(2)}
-              </span>
-            </div>
-          </div>
+        <div className="mb-16 sm:mb-20 pb-12 border-b border-slate-700/50">
+          <p className="text-label mb-2">Current Market Price</p>
+          <p className="text-4xl sm:text-5xl font-700 text-neutral animate-fade-in-up">
+            ${livePrice.price.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+          </p>
           {livePrice.change24h !== 0 && (
-            <div className={`text-xs mt-2 ${livePrice.change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <p className={`text-sm mt-4 ${livePrice.change24h >= 0 ? 'text-profit' : 'text-loss'}`}>
               24h: {livePrice.change24h.toFixed(2)}%
-            </div>
+            </p>
           )}
         </div>
       )}
 
-      {/* Direction */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Position Direction</label>
-        <div className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => setDirection('long')}
-            className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
-              direction === 'long'
-                ? 'bg-profit text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            Long
-          </button>
-          <button
-            type="button"
-            onClick={() => setDirection('short')}
-            className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
-              direction === 'short'
-                ? 'bg-loss text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            Short
-          </button>
-        </div>
-      </div>
-
       {/* Entry Price */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Entry Price (USD)</label>
+      <div className="mb-16 sm:mb-20">
+        <label className="text-label mb-2 block">Entry Price</label>
         <input
           type="number"
           step="0.00000001"
           value={entryPrice}
           onChange={(e) => setEntryPrice(e.target.value)}
-          placeholder="e.g., 45000"
-          className={`input-field w-full ${
-            getErrorMessage(validationErrors, 'entryPrice')
-              ? 'border-red-500 focus:border-red-500'
-              : ''
+          placeholder="50,234.50"
+          className={`input-field text-3xl sm:text-4xl font-600 text-metric ${
+            hasError('entryPrice') ? 'border-loss' : ''
           }`}
         />
-        {getErrorMessage(validationErrors, 'entryPrice') && (
-          <p className="text-xs text-red-400 mt-1">
-            {getErrorMessage(validationErrors, 'entryPrice')}
-          </p>
+        {hasError('entryPrice') && (
+          <p className="text-xs text-loss mt-3">{getErrorMessage(validationErrors, 'entryPrice')}</p>
         )}
       </div>
 
       {/* Position Size */}
-      <div>
+      <div className="mb-16 sm:mb-20">
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-semibold">Position Size</label>
+          <label className="text-label block">Position Size</label>
           <button
             type="button"
             onClick={() => setUseCoinsInput(!useCoinsInput)}
-            className="text-xs text-gray-400 hover:text-gray-300 underline"
+            className="text-xs text-neutral hover:text-cyan-300 transition-colors"
           >
-            Switch to {useCoinsInput ? 'USD' : 'Coins'}
+            {useCoinsInput ? 'Switch to USD' : 'Switch to Coins'}
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-baseline gap-4">
           <input
             type="number"
             step="0.00000001"
@@ -196,77 +153,121 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
                 ? setPositionSizeCoins(e.target.value)
                 : setPositionSizeUSD(e.target.value)
             }
-            placeholder={useCoinsInput ? 'e.g., 0.5 BTC' : 'e.g., 5000'}
-            className="input-field flex-1"
+            placeholder={useCoinsInput ? '1.5' : '1,500'}
+            className={`input-field flex-1 text-3xl sm:text-4xl font-600 text-metric ${
+              hasError('positionSize') ? 'border-loss' : ''
+            }`}
           />
-          <div className="bg-gray-700 px-4 py-2 rounded-lg flex items-center text-sm font-semibold text-gray-300">
+          <span className="text-label font-700 min-w-fit">
             {useCoinsInput ? symbol : 'USD'}
-          </div>
+          </span>
         </div>
-        {livePrice?.price && (
-          <p className="text-xs text-gray-500 mt-2">
-            = {useCoinsInput ? (parseFloat(positionSizeCoins || '0') * livePrice.price).toFixed(2) : (parseFloat(positionSizeUSD || '0') / livePrice.price).toFixed(6)}{' '}
-            {useCoinsInput ? 'USD' : symbol}
-          </p>
+        {hasError('positionSize') && (
+          <p className="text-xs text-loss mt-3">{getErrorMessage(validationErrors, 'positionSize')}</p>
         )}
       </div>
 
-      {/* Leverage */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Leverage (1x - 50x)</label>
-        <input
-          type="number"
-          min="1"
-          max="50"
-          step="0.1"
-          value={leverage}
-          onChange={(e) => setLeverage(e.target.value)}
-          placeholder="e.g., 5"
-          className={`input-field w-full ${
-            getErrorMessage(validationErrors, 'leverage')
-              ? 'border-red-500 focus:border-red-500'
-              : ''
-          }`}
-        />
-        {getErrorMessage(validationErrors, 'leverage') && (
-          <p className="text-xs text-red-400 mt-1">
-            {getErrorMessage(validationErrors, 'leverage')}
-          </p>
-        )}
+      {/* Leverage & Direction Grid */}
+      <div className="grid grid-cols-2 gap-8 mb-16 sm:mb-20">
+        {/* Leverage */}
+        <div>
+          <label className="text-label mb-2 block">Leverage</label>
+          <input
+            type="number"
+            min="1"
+            max="50"
+            step="0.1"
+            value={leverage}
+            onChange={(e) => setLeverage(e.target.value)}
+            placeholder="1"
+            className={`input-field text-2xl sm:text-3xl font-600 text-metric ${
+              hasError('leverage') ? 'border-loss' : ''
+            }`}
+          />
+          {hasError('leverage') && (
+            <p className="text-xs text-loss mt-3">{getErrorMessage(validationErrors, 'leverage')}</p>
+          )}
+        </div>
+
+        {/* Direction */}
+        <div>
+          <label className="text-label mb-2 block">Direction</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDirection('long')}
+              className={`flex-1 py-3 px-4 rounded-lg font-600 text-sm transition-all ${
+                direction === 'long'
+                  ? 'bg-profit/20 border border-profit text-profit'
+                  : 'bg-gray-700/30 border border-gray-600/50 text-gray-400 hover:border-gray-500'
+              }`}
+            >
+              Long
+            </button>
+            <button
+              type="button"
+              onClick={() => setDirection('short')}
+              className={`flex-1 py-3 px-4 rounded-lg font-600 text-sm transition-all ${
+                direction === 'short'
+                  ? 'bg-loss/20 border border-loss text-loss'
+                  : 'bg-gray-700/30 border border-gray-600/50 text-gray-400 hover:border-gray-500'
+              }`}
+            >
+              Short
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Stop Loss */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Stop Loss (Optional)</label>
+      <div className="mb-16 sm:mb-20">
+        <label className="text-label mb-2 block">Stop Loss (Optional)</label>
         <input
           type="number"
           step="0.00000001"
           value={stopLoss}
           onChange={(e) => setStopLoss(e.target.value)}
           placeholder={direction === 'long' ? 'Below entry price' : 'Above entry price'}
-          className="input-field w-full"
+          className={`input-field text-2xl sm:text-3xl font-500 text-metric ${
+            hasError('stopLoss') ? 'border-loss' : ''
+          }`}
         />
+        {hasError('stopLoss') && (
+          <p className="text-xs text-loss mt-3">{getErrorMessage(validationErrors, 'stopLoss')}</p>
+        )}
       </div>
 
       {/* Take Profit */}
-      <div>
-        <label className="block text-sm font-semibold mb-2">Take Profit (Optional)</label>
+      <div className="mb-16 sm:mb-20">
+        <label className="text-label mb-2 block">Take Profit (Optional)</label>
         <input
           type="number"
           step="0.00000001"
           value={takeProfit}
           onChange={(e) => setTakeProfit(e.target.value)}
           placeholder={direction === 'long' ? 'Above entry price' : 'Below entry price'}
-          className="input-field w-full"
+          className={`input-field text-2xl sm:text-3xl font-500 text-metric ${
+            hasError('takeProfit') ? 'border-loss' : ''
+          }`}
         />
+        {hasError('takeProfit') && (
+          <p className="text-xs text-loss mt-3">{getErrorMessage(validationErrors, 'takeProfit')}</p>
+        )}
       </div>
 
       {/* Submit Button */}
       <button
         type="submit"
-        className="btn-primary w-full py-3 text-lg font-bold"
+        disabled={isSubmitting}
+        className={`btn-primary group w-full flex items-center justify-center gap-3 ${
+          isSubmitting ? 'opacity-75 cursor-not-allowed' : ''
+        }`}
       >
-        Calculate Position
+        <span>{isSubmitting ? 'Calculating...' : 'Analyze Position'}</span>
+        <ArrowRight
+          size={20}
+          className={`transition-transform ${isSubmitting ? 'translate-x-0' : 'group-hover:translate-x-1'}`}
+        />
       </button>
     </form>
   );
