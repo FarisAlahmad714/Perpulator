@@ -7,10 +7,11 @@ import {
   calculateRiskAmount,
   calculateRewardAmount,
   calculateRiskRewardRatio,
-  calculateLiquidationPrice
+  calculateLiquidationPrice,
+  calculatePNL
 } from '@/utils/calculations';
 import { usePrice } from '@/contexts/PriceContext';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Info } from 'lucide-react';
 
 interface PositionAdjustmentProps {
   position: Position;
@@ -32,10 +33,11 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
           type: adjustmentType,
           newEntryPrice: parseFloat(newEntryPrice),
           adjustmentSize: parseFloat(adjustmentSizeUSD),
+          takeProfit: takeProfitPrice ? parseFloat(takeProfitPrice) : undefined,
         }
       : null;
 
-  const calculated = adjustment ? calculateAdjustedPosition(position, adjustment) : null;
+  const calculated = adjustment ? calculateAdjustedPosition(position, adjustment, livePrice?.price) : null;
 
   // Original metrics
   const originalMetrics = useMemo(() => {
@@ -67,13 +69,30 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
       position.sideEntry
     );
 
+    // Calculate PNL if current price is available
+    let pnlPercentage = undefined;
+    let pnlUSD = undefined;
+    if (livePrice?.price) {
+      const pnlCalc = calculatePNL(
+        position.entryPrice,
+        livePrice.price,
+        position.positionSize,
+        position.leverage,
+        position.sideEntry
+      );
+      pnlPercentage = pnlCalc.pnlPercentage;
+      pnlUSD = pnlCalc.pnl;
+    }
+
     return {
       riskAmount,
       rewardAmount,
       riskRewardRatio,
       liquidationPrice: liquidationPrice > 0 ? liquidationPrice : undefined,
+      pnlPercentage,
+      pnlUSD,
     };
-  }, [position.entryPrice, position.stopLoss, position.positionSize, position.leverage, position.sideEntry, takeProfitPrice]);
+  }, [position.entryPrice, position.stopLoss, position.positionSize, position.leverage, position.sideEntry, takeProfitPrice, livePrice?.price]);
 
   const formatNumber = (value: number, decimals = 2) => {
     return new Intl.NumberFormat('en-US', {
@@ -93,13 +112,27 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
           {/* Risk/Reward Hero */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 sm:gap-16">
             <div>
-              <p className="text-label mb-4">Risk Amount</p>
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-label">Risk Amount</p>
+                <Info
+                  size={16}
+                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  title="Maximum amount you can lose if stop loss is hit"
+                />
+              </div>
               <p className={`text-4xl sm:text-5xl font-700 text-loss text-metric`}>
                 ${formatNumber(Math.abs(originalMetrics.riskAmount))}
               </p>
             </div>
             <div>
-              <p className="text-label mb-4">Reward Potential</p>
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-label">Reward Potential</p>
+                <Info
+                  size={16}
+                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  title="Maximum profit if take profit target is reached"
+                />
+              </div>
               <p className={`text-4xl sm:text-5xl font-700 text-profit text-metric`}>
                 ${formatNumber(originalMetrics.rewardAmount)}
               </p>
@@ -108,7 +141,14 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
 
           {/* Risk/Reward Ratio */}
           <div className="metric-card">
-            <p className="text-label mb-4">Risk/Reward Ratio</p>
+            <div className="flex items-center gap-2 mb-4">
+              <p className="text-label">Risk/Reward Ratio</p>
+              <Info
+                size={16}
+                className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                title="For every $1 you risk, you can make $X. Higher is better (2:1 is favorable)"
+              />
+            </div>
             <p className={`text-5xl sm:text-6xl font-700 text-neutral`}>
               1:{formatNumber(originalMetrics.riskRewardRatio, 2)}
             </p>
@@ -116,6 +156,30 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
               {originalMetrics.riskRewardRatio >= 2 ? '✓ Favorable ratio' : '⚠ Consider improving'}
             </p>
           </div>
+
+          {/* Current PNL % */}
+          {originalMetrics.pnlPercentage !== undefined && (
+            <div className="metric-card">
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-label">Current PNL</p>
+                <Info
+                  size={16}
+                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  title="Your current unrealized profit/loss. % includes leverage effect on your margin"
+                />
+              </div>
+              <p className={`text-5xl sm:text-6xl font-700 ${
+                originalMetrics.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'
+              }`}>
+                {originalMetrics.pnlPercentage >= 0 ? '+' : ''}{formatNumber(originalMetrics.pnlPercentage, 2)}%
+              </p>
+              {originalMetrics.pnlUSD !== undefined && (
+                <p className="text-sm text-gray-400 mt-3">
+                  {originalMetrics.pnlUSD >= 0 ? '+' : ''}${formatNumber(Math.abs(originalMetrics.pnlUSD))}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Position Details */}
           <div className="card-bg">
@@ -264,13 +328,27 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
             <div className="metric-card">
               <div className="grid grid-cols-2 gap-8 sm:gap-12">
                 <div>
-                  <p className="text-label mb-3">New Risk</p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-label">New Risk</p>
+                    <Info
+                      size={14}
+                      className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                      title="Updated max loss with new average entry price"
+                    />
+                  </div>
                   <p className="text-3xl sm:text-4xl font-700 text-loss text-metric">
                     ${formatNumber(Math.abs(calculated.riskAmount))}
                   </p>
                 </div>
                 <div>
-                  <p className="text-label mb-3">New Reward</p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <p className="text-label">New Reward</p>
+                    <Info
+                      size={14}
+                      className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                      title="Updated max profit if take profit is reached"
+                    />
+                  </div>
                   <p className="text-3xl sm:text-4xl font-700 text-profit text-metric">
                     ${formatNumber(calculated.rewardAmount)}
                   </p>
@@ -280,16 +358,68 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
 
             {/* New RR Ratio */}
             <div className="metric-card border-2 border-neutral/50">
-              <p className="text-label mb-4">New Risk/Reward</p>
+              <div className="flex items-center gap-2 mb-4">
+                <p className="text-label">New Risk/Reward</p>
+                <Info
+                  size={16}
+                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  title="Updated ratio after position adjustment. Shows how your setup changes"
+                />
+              </div>
               <p className="text-5xl sm:text-6xl font-700 text-neutral">
                 1:{formatNumber(calculated.riskRewardRatio, 2)}
               </p>
             </div>
 
+            {/* New PNL % and Total PNL USD */}
+            {calculated.pnlPercentage !== undefined && (
+              <div className="metric-card">
+                <div className="grid grid-cols-2 gap-8 sm:gap-12">
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-label">Updated PNL %</p>
+                      <Info
+                        size={14}
+                        className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                        title="Current return % on your total margin including leverage. Decreases when average entry gets closer to current price"
+                      />
+                    </div>
+                    <p className={`text-3xl sm:text-4xl font-700 ${
+                      calculated.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'
+                    }`}>
+                      {calculated.pnlPercentage >= 0 ? '+' : ''}{formatNumber(calculated.pnlPercentage, 2)}%
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-label">Total PNL USD</p>
+                      <Info
+                        size={14}
+                        className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                        title="Your current unrealized profit/loss in dollars. Increases when you add profitable margin"
+                      />
+                    </div>
+                    <p className={`text-3xl sm:text-4xl font-700 ${
+                      calculated.pnl !== undefined && calculated.pnl >= 0 ? 'text-profit' : 'text-loss'
+                    }`}>
+                      {calculated.pnl !== undefined ? (calculated.pnl >= 0 ? '+' : '') + formatNumber(calculated.pnl) : '$0.00'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Liquidation Price */}
             {calculated.liquidationPrice && (
               <div className="card-bg">
-                <p className="text-label mb-4">Liquidation Price</p>
+                <div className="flex items-center gap-2 mb-4">
+                  <p className="text-label">Liquidation Price</p>
+                  <Info
+                    size={16}
+                    className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                    title="Price at which your position will be forcefully closed and margin liquidated"
+                  />
+                </div>
                 <p className="text-3xl sm:text-4xl font-600 text-metric">
                   ${formatNumber(calculated.liquidationPrice)}
                 </p>

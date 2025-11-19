@@ -79,6 +79,14 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       console.error(`CoinGecko API error: ${response.status} ${response.statusText}`);
+
+      // Fallback: return cached data if API fails (important for rate limiting)
+      const cached = priceCache.get(cacheKey);
+      if (cached) {
+        console.log('API failed, returning cached prices');
+        return NextResponse.json(cached.data);
+      }
+
       throw new Error(`API error: ${response.statusText}`);
     }
 

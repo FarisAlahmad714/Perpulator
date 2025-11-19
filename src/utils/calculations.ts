@@ -47,8 +47,9 @@ export const calculateRiskAmount = (
 };
 
 /**
- * Calculate potential reward (using a target price or multiplier)
+ * Calculate potential reward based on target price
  * IMPORTANT: Uses NOTIONAL position size (positionSize * leverage)
+ * Direction-aware: correctly calculates profit for both LONG and SHORT
  */
 export const calculateRewardAmount = (
   entryPrice: number,
@@ -57,8 +58,17 @@ export const calculateRewardAmount = (
   leverage: number,
   direction: 'long' | 'short'
 ): number => {
-  // Calculate notional position size (margin * leverage)
+  if (!targetPrice || entryPrice === targetPrice) return 0;
+
   const notionalSize = positionSize * leverage;
+
+  // For LONG: profit when price goes UP (target > entry)
+  // For SHORT: profit when price goes DOWN (target < entry)
+  const isValidTarget = direction === 'long'
+    ? targetPrice > entryPrice
+    : targetPrice < entryPrice;
+
+  if (!isValidTarget) return 0;
 
   const priceDifference = Math.abs(targetPrice - entryPrice);
   const rewardPercentage = priceDifference / entryPrice;
@@ -79,6 +89,8 @@ export const calculateRiskRewardRatio = (
 
 /**
  * Calculate current PNL based on current price
+ * PNL % includes leverage multiplier (return on margin)
+ * PNL USD is the dollar profit on the margin (includes leverage)
  */
 export const calculatePNL = (
   entryPrice: number,
@@ -89,8 +101,10 @@ export const calculatePNL = (
 ): { pnl: number; pnlPercentage: number } => {
   const priceDifference = currentPrice - entryPrice;
   const direction_multiplier = direction === 'long' ? 1 : -1;
-  const pnlPercentage = (priceDifference / entryPrice) * 100 * direction_multiplier;
-  const pnl = (positionSize / entryPrice) * priceDifference * direction_multiplier;
+  // PNL % is the price movement percentage multiplied by leverage
+  const pnlPercentage = (priceDifference / entryPrice) * 100 * direction_multiplier * leverage;
+  // PNL in USD is margin * (price movement %) * leverage * direction
+  const pnl = positionSize * (priceDifference / entryPrice) * direction_multiplier * leverage;
 
   return {
     pnl,
@@ -121,17 +135,23 @@ export const calculateLiquidationPrice = (
 
 /**
  * Calculate total position after adjustment
+ * Handles both ADD and SUBTRACT operations with accurate math
+ * Properly handles LONG vs SHORT positions
+ * @param currentPrice - Current market price for PNL calculation (should be live price)
  */
 export const calculateAdjustedPosition = (
   originalPosition: Position,
-  adjustment: PositionAdjustment
+  adjustment: PositionAdjustment,
+  currentPrice?: number
 ): CalculatedPosition => {
-  const { entryPrice, positionSize, leverage, stopLoss, currentPrice, sideEntry } =
+  const { entryPrice, positionSize, leverage, stopLoss, takeProfit, currentPrice: positionCurrentPrice, sideEntry } =
     originalPosition;
-  const { newEntryPrice, adjustmentSize, type } = adjustment;
+  const { newEntryPrice, adjustmentSize, type, takeProfit: adjustmentTP } = adjustment;
 
-  // Calculate new average entry price
+  // Calculate new total size
   const newTotalSize = type === 'add' ? positionSize + adjustmentSize : positionSize - adjustmentSize;
+
+  // Calculate average entry price using weighted average
   const averageEntryPrice = calculateAverageEntryPrice(
     positionSize,
     entryPrice,
@@ -140,7 +160,10 @@ export const calculateAdjustedPosition = (
     type
   );
 
-  // Calculate risk and reward
+  // Use adjustment's takeProfit if provided, otherwise use original
+  const effectiveTP = adjustmentTP !== undefined ? adjustmentTP : takeProfit;
+
+  // Calculate risk based on stop loss
   const riskAmount = calculateRiskAmount(
     averageEntryPrice,
     stopLoss,
@@ -149,21 +172,24 @@ export const calculateAdjustedPosition = (
     sideEntry
   );
 
-  // For reward, assume 2:1 risk/reward ratio target or use a fixed target price
-  // Here we'll calculate based on the stop loss distance
-  const rewardAmount = stopLoss ? riskAmount * 2 : 0; // 2:1 ratio
+  // Calculate reward using ACTUAL take profit price (not assumed 2:1 ratio)
+  const rewardAmount = effectiveTP
+    ? calculateRewardAmount(averageEntryPrice, effectiveTP, newTotalSize, leverage, sideEntry)
+    : 0;
 
+  // Calculate risk/reward ratio
   const riskRewardRatio = calculateRiskRewardRatio(riskAmount, rewardAmount);
 
-  // Calculate PNL if current price is available
+  // Calculate PNL if current price is available (use passed-in price, fallback to position price)
   let pnl = undefined;
   let pnlPercentage = undefined;
-  if (currentPrice) {
+  const priceForCalc = currentPrice ?? positionCurrentPrice;
+  if (priceForCalc) {
     const pnlCalc = calculatePNL(
       averageEntryPrice,
-      currentPrice,
+      priceForCalc,
       newTotalSize,
-      leverage,
+      leverage || originalPosition.leverage, // Ensure leverage is used from original position
       sideEntry
     );
     pnl = pnlCalc.pnl;

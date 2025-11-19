@@ -34,6 +34,9 @@ export function PriceProvider({ children }: { children: ReactNode }) {
 
   // Use ref to track symbols - no re-renders when symbols change
   const trackedSymbolsRef = useRef<Set<string>>(new Set(['BTC', 'ETH']));
+  // Exponential backoff for rate limiting
+  const backoffMultiplierRef = useRef<number>(1);
+  const lastFetchTimeRef = useRef<number>(0);
 
   // Track symbol without triggering re-renders (memoized)
   const trackSymbol = useCallback((symbol: string) => {
@@ -45,6 +48,14 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     const symbols = Array.from(trackedSymbolsRef.current);
 
     if (symbols.length === 0) return;
+
+    // Respect backoff - don't fetch if interval hasn't passed
+    const now = Date.now();
+    const minInterval = POLLING_INTERVAL * backoffMultiplierRef.current;
+    if (now - lastFetchTimeRef.current < minInterval) {
+      return;
+    }
+    lastFetchTimeRef.current = now;
 
     try {
       const controller = new AbortController();
@@ -88,16 +99,24 @@ export function PriceProvider({ children }: { children: ReactNode }) {
 
       // Determine error message
       let errorMessage = 'Unable to fetch live prices';
+      let isRateLimited = false;
+
       if (error.name === 'AbortError') {
         errorMessage = 'Request timeout - check your connection';
       } else if (error instanceof TypeError) {
         errorMessage = 'Network error - no internet connection';
+      } else if (error.message.includes('429')) {
+        errorMessage = 'API rate limited - using cached prices';
+        isRateLimited = true;
+        // Increase backoff to avoid hammering API
+        backoffMultiplierRef.current = Math.min(backoffMultiplierRef.current * 2, 8);
       } else if (error.message.includes('HTTP')) {
         errorMessage = `Server error: ${error.message}`;
       }
 
       setError(errorMessage);
-      setIsConnected(false);
+      // Keep isConnected true if we have cached data and are rate limited
+      setIsConnected(!isRateLimited && error.name !== 'AbortError');
       setFailedAttempts((prev) => prev + 1);
       setLastError(error);
       console.error('Price fetch error:', error);
@@ -106,6 +125,7 @@ export function PriceProvider({ children }: { children: ReactNode }) {
 
   // Retry function
   const retry = useCallback(() => {
+    backoffMultiplierRef.current = 1; // Reset backoff
     setFailedAttempts(0);
     setLastError(null);
     setError(null);
@@ -117,7 +137,7 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     // Fetch immediately
     fetchPrices();
 
-    // Set up interval
+    // Set up interval - fetchPrices will respect backoff internally
     const interval = setInterval(fetchPrices, POLLING_INTERVAL);
 
     // Cleanup

@@ -5,6 +5,11 @@ import { Providers } from './providers';
 export const metadata: Metadata = {
   title: 'Perpulator - Perpetual Futures Position Calculator',
   description: 'Calculate position sizes and risk/reward ratios for crypto perpetual trading',
+  icons: {
+    icon: '/assets/logos/logo-favicon.png',
+    shortcut: '/assets/logos/logo-favicon.png',
+    apple: '/assets/logos/logo-favicon.png',
+  },
 };
 
 export default function RootLayout({

@@ -14,6 +14,7 @@ export interface PositionAdjustment {
   type: 'add' | 'subtract';
   newEntryPrice: number;
   adjustmentSize: number; // in USD
+  takeProfit?: number; // Optional: user-specified take profit price
 }
 
 export interface CalculatedPosition {
