@@ -11,6 +11,7 @@ import {
   calculatePNL
 } from '@/utils/calculations';
 import { usePrice } from '@/contexts/PriceContext';
+import { trackPositionAdjusted } from '@/lib/analytics';
 import { RotateCcw, Info } from 'lucide-react';
 
 interface PositionAdjustmentProps {
@@ -38,6 +39,17 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
       : null;
 
   const calculated = adjustment ? calculateAdjustedPosition(position, adjustment, livePrice?.price) : null;
+
+  // Track position adjustment when values change
+  useMemo(() => {
+    if (adjustment && adjustmentSizeUSD) {
+      trackPositionAdjusted(
+        adjustmentType,
+        position.symbol,
+        parseFloat(adjustmentSizeUSD)
+      );
+    }
+  }, [adjustment, adjustmentType, position.symbol, adjustmentSizeUSD]);
 
   // Original metrics
   const originalMetrics = useMemo(() => {

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef, useCallback, useMemo } from 'react';
+import { trackApiError } from '@/lib/analytics';
 
 export interface LivePrice {
   symbol: string;
@@ -119,6 +120,10 @@ export function PriceProvider({ children }: { children: ReactNode }) {
       setIsConnected(!isRateLimited && error.name !== 'AbortError');
       setFailedAttempts((prev) => prev + 1);
       setLastError(error);
+
+      // Track API error
+      trackApiError(errorMessage);
+
       console.error('Price fetch error:', error);
     }
   }, []);

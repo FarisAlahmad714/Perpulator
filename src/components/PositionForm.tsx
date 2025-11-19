@@ -5,6 +5,7 @@ import { Position } from '@/types/position';
 import { getSupportedCryptos } from '@/lib/cryptoApi';
 import { usePrice } from '@/contexts/PriceContext';
 import { validatePositionInput, getErrorMessage, ValidationError } from '@/utils/validation';
+import { trackPositionCalculated } from '@/lib/analytics';
 import { ArrowRight } from 'lucide-react';
 
 interface PositionFormProps {
@@ -70,6 +71,14 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
       currentPrice: livePrice?.price,
       timestamp: new Date(),
     };
+
+    // Track analytics
+    trackPositionCalculated(
+      symbol.toUpperCase(),
+      direction,
+      parseFloat(leverage),
+      parseFloat(positionSizeUSD)
+    );
 
     // Simulate submit animation
     setTimeout(() => {
