@@ -38,8 +38,8 @@ export default function Home() {
   return (
     <>
       <PriceIndicator />
-      <div className="flex items-center justify-center min-h-screen px-4 sm:px-6 py-12 sm:py-16">
-        <div className="w-full max-w-2xl">
+      <div className="flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 py-12 sm:py-16">
+        <div className="w-full max-w-2xl flex-1">
           <div className="text-center mb-20 sm:mb-24">
             <h1 className="text-4xl sm:text-5xl font-700 mb-4 text-neutral">
               Perpulator
@@ -63,6 +63,18 @@ export default function Home() {
             </div>
           ) : null}
         </div>
+
+        <footer className="w-full text-center text-xs text-gray-500 mt-12 pt-8 border-t border-gray-800/50">
+          Data provided by{' '}
+          <a
+            href="https://www.coingecko.com/api"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-neutral hover:text-cyan-200 transition-colors"
+          >
+            CoinGecko
+          </a>
+        </footer>
       </div>
     </>
   );
