@@ -114,11 +114,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Risk Amount</p>
-                <Info
-                  size={16}
-                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                  title="Maximum amount you can lose if stop loss is hit"
-                />
+                <div title="Maximum amount you can lose if stop loss is hit">
+                  <Info
+                    size={16}
+                    className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  />
+                </div>
               </div>
               <p className={`text-4xl sm:text-5xl font-700 text-loss text-metric`}>
                 ${formatNumber(Math.abs(originalMetrics.riskAmount))}
@@ -127,11 +128,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Reward Potential</p>
-                <Info
-                  size={16}
-                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                  title="Maximum profit if take profit target is reached"
-                />
+                <div title="Maximum profit if take profit target is reached">
+                  <Info
+                    size={16}
+                    className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  />
+                </div>
               </div>
               <p className={`text-4xl sm:text-5xl font-700 text-profit text-metric`}>
                 ${formatNumber(originalMetrics.rewardAmount)}
@@ -143,11 +145,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
           <div className="metric-card">
             <div className="flex items-center gap-2 mb-4">
               <p className="text-label">Risk/Reward Ratio</p>
-              <Info
-                size={16}
-                className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                title="For every $1 you risk, you can make $X. Higher is better (2:1 is favorable)"
-              />
+              <div title="For every $1 you risk, you can make $X. Higher is better (2:1 is favorable)">
+                <Info
+                  size={16}
+                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                />
+              </div>
             </div>
             <p className={`text-5xl sm:text-6xl font-700 text-neutral`}>
               1:{formatNumber(originalMetrics.riskRewardRatio, 2)}
@@ -162,11 +165,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
             <div className="metric-card">
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Current PNL</p>
-                <Info
-                  size={16}
-                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                  title="Your current unrealized profit/loss. % includes leverage effect on your margin"
-                />
+                <div title="Your current unrealized profit/loss. % includes leverage effect on your margin">
+                  <Info
+                    size={16}
+                    className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  />
+                </div>
               </div>
               <p className={`text-5xl sm:text-6xl font-700 ${
                 originalMetrics.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'
@@ -330,11 +334,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <p className="text-label">New Risk</p>
-                    <Info
-                      size={14}
-                      className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                      title="Updated max loss with new average entry price"
-                    />
+                    <div title="Updated max loss with new average entry price">
+                      <Info
+                        size={14}
+                        className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                      />
+                    </div>
                   </div>
                   <p className="text-3xl sm:text-4xl font-700 text-loss text-metric">
                     ${formatNumber(Math.abs(calculated.riskAmount))}
@@ -343,11 +348,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <p className="text-label">New Reward</p>
-                    <Info
-                      size={14}
-                      className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                      title="Updated max profit if take profit is reached"
-                    />
+                    <div title="Updated max profit if take profit is reached">
+                      <Info
+                        size={14}
+                        className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                      />
+                    </div>
                   </div>
                   <p className="text-3xl sm:text-4xl font-700 text-profit text-metric">
                     ${formatNumber(calculated.rewardAmount)}
@@ -360,11 +366,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
             <div className="metric-card border-2 border-neutral/50">
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">New Risk/Reward</p>
-                <Info
-                  size={16}
-                  className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                  title="Updated ratio after position adjustment. Shows how your setup changes"
-                />
+                <div title="Updated ratio after position adjustment. Shows how your setup changes">
+                  <Info
+                    size={16}
+                    className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                  />
+                </div>
               </div>
               <p className="text-5xl sm:text-6xl font-700 text-neutral">
                 1:{formatNumber(calculated.riskRewardRatio, 2)}
@@ -378,11 +385,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-label">Updated PNL %</p>
-                      <Info
-                        size={14}
-                        className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                        title="Current return % on your total margin including leverage. Decreases when average entry gets closer to current price"
-                      />
+                      <div title="Current return % on your total margin including leverage. Decreases when average entry gets closer to current price">
+                        <Info
+                          size={14}
+                          className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                        />
+                      </div>
                     </div>
                     <p className={`text-3xl sm:text-4xl font-700 ${
                       calculated.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'
@@ -393,11 +401,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-label">Total PNL USD</p>
-                      <Info
-                        size={14}
-                        className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                        title="Your current unrealized profit/loss in dollars. Increases when you add profitable margin"
-                      />
+                      <div title="Your current unrealized profit/loss in dollars. Increases when you add profitable margin">
+                        <Info
+                          size={14}
+                          className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                        />
+                      </div>
                     </div>
                     <p className={`text-3xl sm:text-4xl font-700 ${
                       calculated.pnl !== undefined && calculated.pnl >= 0 ? 'text-profit' : 'text-loss'
@@ -414,11 +423,12 @@ export default function PositionAdjustment({ position }: PositionAdjustmentProps
               <div className="card-bg">
                 <div className="flex items-center gap-2 mb-4">
                   <p className="text-label">Liquidation Price</p>
-                  <Info
-                    size={16}
-                    className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
-                    title="Price at which your position will be forcefully closed and margin liquidated"
-                  />
+                  <div title="Price at which your position will be forcefully closed and margin liquidated">
+                    <Info
+                      size={16}
+                      className="text-neutral/50 hover:text-neutral transition-colors cursor-help"
+                    />
+                  </div>
                 </div>
                 <p className="text-3xl sm:text-4xl font-600 text-metric">
                   ${formatNumber(calculated.liquidationPrice)}
