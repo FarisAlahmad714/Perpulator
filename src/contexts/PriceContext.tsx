@@ -41,7 +41,7 @@ export function PriceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Main fetch function with enhanced error handling
-  const fetchPrices = async () => {
+  const fetchPrices = useCallback(async () => {
     const symbols = Array.from(trackedSymbolsRef.current);
 
     if (symbols.length === 0) return;
@@ -102,7 +102,7 @@ export function PriceProvider({ children }: { children: ReactNode }) {
       setLastError(error);
       console.error('Price fetch error:', error);
     }
-  };
+  }, []);
 
   // Retry function
   const retry = useCallback(() => {
@@ -110,7 +110,7 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     setLastError(null);
     setError(null);
     fetchPrices();
-  }, []);
+  }, [fetchPrices]);
 
   // Set up polling - only once on mount
   useEffect(() => {
