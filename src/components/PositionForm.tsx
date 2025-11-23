@@ -60,16 +60,26 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
 
     setIsSubmitting(true);
 
+    const now = new Date();
     const position: Position = {
+      id: `${symbol.toUpperCase()}_${now.getTime()}`,
+      name: `${symbol.toUpperCase()} ${direction.toUpperCase()} @ $${parseFloat(entryPrice).toFixed(2)}`,
       symbol: symbol.toUpperCase(),
       sideEntry: direction,
-      entryPrice: parseFloat(entryPrice),
-      positionSize: parseFloat(positionSizeUSD),
-      leverage: parseFloat(leverage),
+      entries: [
+        {
+          entryPrice: parseFloat(entryPrice),
+          size: parseFloat(positionSizeUSD),
+          leverage: parseFloat(leverage),
+          timestamp: new Date(),
+          type: 'initial',
+        }
+      ],
       stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
       takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
       currentPrice: livePrice?.price,
       timestamp: new Date(),
+      savedAt: now,
     };
 
     // Track analytics

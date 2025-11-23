@@ -137,6 +137,7 @@ export const calculateLiquidationPrice = (
  * Calculate total position after adjustment
  * Handles both ADD and SUBTRACT operations with accurate math
  * Properly handles LONG vs SHORT positions
+ * Works with the new entries array structure in Position
  * @param currentPrice - Current market price for PNL calculation (should be live price)
  */
 export const calculateAdjustedPosition = (
@@ -144,37 +145,46 @@ export const calculateAdjustedPosition = (
   adjustment: PositionAdjustment,
   currentPrice?: number
 ): CalculatedPosition => {
-  const { entryPrice, positionSize, leverage, stopLoss, takeProfit, currentPrice: positionCurrentPrice, sideEntry } =
-    originalPosition;
-  const { newEntryPrice, adjustmentSize, type, takeProfit: adjustmentTP } = adjustment;
+  const { stopLoss, takeProfit, currentPrice: positionCurrentPrice, sideEntry, entries } = originalPosition;
+  const { newEntryPrice, adjustmentSize, adjustmentLeverage, type, takeProfit: adjustmentTP } = adjustment;
 
-  // Calculate new total size
-  const newTotalSize = type === 'add' ? positionSize + adjustmentSize : positionSize - adjustmentSize;
+  // Calculate totals from entries array
+  let totalSize = 0;
+  let totalLeveragedCapital = 0;
+  let weightedEntryPrice = 0;
 
-  // Calculate average entry price using weighted average
-  const averageEntryPrice = calculateAverageEntryPrice(
-    positionSize,
-    entryPrice,
-    adjustmentSize,
-    newEntryPrice,
-    type
-  );
+  for (const entry of entries) {
+    totalSize += entry.type === 'subtract' ? -entry.size : entry.size;
+    totalLeveragedCapital += (entry.type === 'subtract' ? -entry.size : entry.size) * entry.leverage;
+    weightedEntryPrice += (entry.type === 'subtract' ? -entry.size : entry.size) * entry.entryPrice;
+  }
+
+  const averageEntryPrice = totalSize !== 0 ? weightedEntryPrice / totalSize : 0;
+  const averageLeverage = totalSize !== 0 ? Math.abs(totalLeveragedCapital / totalSize) : 1;
+
+  // Add the new adjustment
+  totalSize += type === 'add' ? adjustmentSize : -adjustmentSize;
+  totalLeveragedCapital += (type === 'add' ? adjustmentSize : -adjustmentSize) * adjustmentLeverage;
+  weightedEntryPrice += (type === 'add' ? adjustmentSize : -adjustmentSize) * newEntryPrice;
+
+  const newAverageEntryPrice = totalSize !== 0 ? Math.abs(weightedEntryPrice / totalSize) : 0;
+  const newAverageLeverage = totalSize !== 0 ? Math.abs(totalLeveragedCapital / totalSize) : 1;
 
   // Use adjustment's takeProfit if provided, otherwise use original
   const effectiveTP = adjustmentTP !== undefined ? adjustmentTP : takeProfit;
 
   // Calculate risk based on stop loss
   const riskAmount = calculateRiskAmount(
-    averageEntryPrice,
+    newAverageEntryPrice,
     stopLoss,
-    newTotalSize,
-    leverage,
+    Math.abs(totalSize),
+    newAverageLeverage,
     sideEntry
   );
 
   // Calculate reward using ACTUAL take profit price (not assumed 2:1 ratio)
   const rewardAmount = effectiveTP
-    ? calculateRewardAmount(averageEntryPrice, effectiveTP, newTotalSize, leverage, sideEntry)
+    ? calculateRewardAmount(newAverageEntryPrice, effectiveTP, Math.abs(totalSize), newAverageLeverage, sideEntry)
     : 0;
 
   // Calculate risk/reward ratio
@@ -186,10 +196,10 @@ export const calculateAdjustedPosition = (
   const priceForCalc = currentPrice ?? positionCurrentPrice;
   if (priceForCalc) {
     const pnlCalc = calculatePNL(
-      averageEntryPrice,
+      newAverageEntryPrice,
       priceForCalc,
-      newTotalSize,
-      leverage || originalPosition.leverage, // Ensure leverage is used from original position
+      Math.abs(totalSize),
+      newAverageLeverage,
       sideEntry
     );
     pnl = pnlCalc.pnl;
@@ -198,15 +208,15 @@ export const calculateAdjustedPosition = (
 
   // Calculate liquidation price
   const liquidationPrice = calculateLiquidationPrice(
-    averageEntryPrice,
-    leverage,
+    newAverageEntryPrice,
+    newAverageLeverage,
     sideEntry
   );
 
   return {
-    averageEntryPrice,
-    totalSize: newTotalSize,
-    totalCapital: newTotalSize,
+    averageEntryPrice: newAverageEntryPrice,
+    totalSize: Math.abs(totalSize),
+    totalCapital: Math.abs(totalSize),
     riskAmount,
     rewardAmount,
     riskRewardRatio,
