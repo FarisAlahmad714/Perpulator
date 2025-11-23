@@ -439,7 +439,7 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                     <div>
                       <p className="text-xs text-gray-500 mb-2">Realized PNL (USD)</p>
                       <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                        {entryPNL >= 0 ? '+' : ''}${formatNumber(Math.abs(entryPNL), 2)}
+                        {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
                       </p>
                     </div>
 
@@ -487,7 +487,7 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                               </p>
                               <p className="text-xs text-gray-500">Current PNL of Remaining (USD)</p>
                               <p className={`text-lg font-600 ${remainingPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                {remainingPNLUSD >= 0 ? '+' : ''}${formatNumber(Math.abs(remainingPNLUSD), 2)}
+                                {remainingPNLUSD >= 0 ? '+' : ''}${formatNumber(remainingPNLUSD, 2)}
                               </p>
                             </div>
                           );
@@ -500,7 +500,7 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                     <div>
                       <p className="text-xs text-gray-500 mb-2">Current PNL (USD)</p>
                       <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                        {entryPNL >= 0 ? '+' : ''}${formatNumber(Math.abs(entryPNL), 2)}
+                        {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
                       </p>
                     </div>
                   </div>
@@ -513,7 +513,28 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
 
       {/* Current Position Metrics */}
       <div className="mb-20 sm:mb-24 pb-12 sm:pb-16 border-t border-slate-700/50">
-        <h3 className="text-label mb-12 sm:mb-16 pt-12 sm:pt-16">Current Position Summary</h3>
+        {/* Live Market Price Card */}
+        {livePrice?.price && (
+          <div className="mb-12 sm:mb-16 card-bg">
+            <p className="text-label mb-6">Current Market Price</p>
+            <div className="flex items-baseline gap-4 mb-6">
+              <p className="text-5xl sm:text-6xl font-700 text-metric">
+                ${formatNumber(livePrice.price, 2)}
+              </p>
+              <p className={`text-lg font-600 ${livePrice.change24h >= 0 ? 'text-profit' : 'text-loss'}`}>
+                {livePrice.change24h >= 0 ? '+' : ''}{formatNumber(livePrice.change24h, 2)}% (24h)
+              </p>
+            </div>
+            <div className="text-sm text-gray-400 space-y-2">
+              <p>Entry Price: ${formatNumber(totals.averageEntryPrice, 2)}</p>
+              <p>Difference: <span className={totals.averageEntryPrice > livePrice.price ? 'text-loss' : 'text-profit'}>
+                {totals.averageEntryPrice > livePrice.price ? '−' : '+'}${formatNumber(Math.abs(totals.averageEntryPrice - livePrice.price), 2)}
+              </span></p>
+            </div>
+          </div>
+        )}
+
+        <h3 className="text-label mb-12 sm:mb-16">Current Position Summary</h3>
 
         <div className="space-y-8 sm:space-y-12">
           {/* Total Position Overview */}
@@ -596,8 +617,8 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                   {originalMetrics.pnlPercentage >= 0 ? '+' : ''}{formatNumber(originalMetrics.pnlPercentage, 2)}%
                 </p>
                 {originalMetrics.pnlUSD !== undefined && (
-                  <p className="text-sm text-gray-400 mt-3">
-                    {originalMetrics.pnlUSD >= 0 ? '+' : ''}${formatNumber(Math.abs(originalMetrics.pnlUSD))}
+                  <p className={`text-sm mt-3 ${originalMetrics.pnlUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                    {originalMetrics.pnlUSD >= 0 ? '+' : ''}${formatNumber(originalMetrics.pnlUSD)}
                   </p>
                 )}
               </div>
