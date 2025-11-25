@@ -11,11 +11,18 @@ import {
 } from '@/utils/calculations';
 import { usePrice } from '@/contexts/PriceContext';
 import { trackPositionAdjusted } from '@/lib/analytics';
-import { Plus, Minus, Info, Trash2 } from 'lucide-react';
+import { Plus, Minus, Info, Trash2, Edit2, Check, X } from 'lucide-react';
 
 interface PositionAdjustmentProps {
   position: Position;
   onPositionUpdate: (updatedPosition: Position) => void;
+}
+
+interface EditingEntry {
+  index: number;
+  entryPrice: string;
+  size: string;
+  leverage: string;
 }
 
 export default function PositionAdjustment({ position, onPositionUpdate }: PositionAdjustmentProps) {
@@ -27,6 +34,7 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
   const [adjustmentLeverage, setAdjustmentLeverage] = useState('1');
   const [stopLossPrice, setStopLossPrice] = useState(position.stopLoss ? String(position.stopLoss) : '');
   const [takeProfitPrice, setTakeProfitPrice] = useState(position.takeProfit ? String(position.takeProfit) : '');
+  const [editingEntry, setEditingEntry] = useState<EditingEntry | null>(null);
 
   const livePrice = usePrice(position.symbol);
 
@@ -349,6 +357,46 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
     onPositionUpdate(updatedPosition);
   };
 
+  const handleStartEdit = (index: number) => {
+    const entry = position.entries[index];
+    setEditingEntry({
+      index,
+      entryPrice: String(entry.entryPrice),
+      size: String(entry.size),
+      leverage: String(entry.leverage),
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingEntry) return;
+
+    const entryPrice = parseFloat(editingEntry.entryPrice);
+    const size = parseFloat(editingEntry.size);
+    const leverage = parseFloat(editingEntry.leverage);
+
+    if (!entryPrice || !size || !leverage) return;
+
+    const updatedEntries = [...position.entries];
+    updatedEntries[editingEntry.index] = {
+      ...updatedEntries[editingEntry.index],
+      entryPrice,
+      size,
+      leverage,
+    };
+
+    const updatedPosition: Position = {
+      ...position,
+      entries: updatedEntries,
+    };
+
+    onPositionUpdate(updatedPosition);
+    setEditingEntry(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingEntry(null);
+  };
+
   const formatNumber = (value: number, decimals = 2) => {
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
@@ -474,48 +522,59 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                       <p className="text-xs text-gray-500 mt-1">{new Date(entry.timestamp).toLocaleString()}</p>
                     </div>
                   </div>
-                  {idx > 0 && (
-                    <button
-                      onClick={() => handleRemoveEntry(idx)}
-                      className="text-gray-400 hover:text-loss transition-colors"
-                      title="Remove this entry"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
+                  <div className="flex gap-2">
+                    {editingEntry?.index !== idx && (
+                      <button
+                        onClick={() => handleStartEdit(idx)}
+                        className="text-gray-400 hover:text-neutral transition-colors"
+                        title="Edit this entry"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
+                    {idx > 0 && (
+                      <button
+                        onClick={() => handleRemoveEntry(idx)}
+                        className="text-gray-400 hover:text-loss transition-colors"
+                        title="Remove this entry"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">
-                      {entry.type === 'subtract' ? 'Close Price' : entry.type === 'add' ? 'Avg Entry (after add)' : 'Entry Price'}
-                    </p>
-                    <p className="text-lg sm:text-xl font-600 text-metric">
-                      ${formatNumber(entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)}
-                    </p>
-                    {entry.type === 'add' && (
-                      <p className="text-xs text-gray-400 mt-1">Entry: ${formatNumber(entry.entryPrice)}</p>
-                    )}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {entry.type === 'subtract' ? 'Close Price' : entry.type === 'add' ? 'Avg Entry (after add)' : 'Entry Price'}
+                      </p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">
+                        ${formatNumber(entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)}
+                      </p>
+                      {entry.type === 'add' && (
+                        <p className="text-xs text-gray-400 mt-1">Entry: ${formatNumber(entry.entryPrice)}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Size (USD)</p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(entry.size)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Total Position</p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(runningTotalSize)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Leverage</p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">{formatNumber(entry.leverage, 1)}x</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">{entry.type === 'subtract' ? 'Realized PNL %' : 'Current PNL %'}</p>
+                      <p className={`text-lg sm:text-xl font-600 ${entryPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                        {entryPNLPercent >= 0 ? '+' : ''}{formatNumber(entryPNLPercent, 2)}%
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">Size (USD)</p>
-                    <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(entry.size)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">Total Position</p>
-                    <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(runningTotalSize)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">Leverage</p>
-                    <p className="text-lg sm:text-xl font-600 text-metric">{formatNumber(entry.leverage, 1)}x</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">{entry.type === 'subtract' ? 'Realized PNL %' : 'Current PNL %'}</p>
-                    <p className={`text-lg sm:text-xl font-600 ${entryPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
-                      {entryPNLPercent >= 0 ? '+' : ''}{formatNumber(entryPNLPercent, 2)}%
-                    </p>
-                  </div>
-                </div>
 
                 {/* Stop Loss Info */}
                 {position.stopLoss && entry.type !== 'subtract' && (
@@ -1057,6 +1116,74 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
         >
           {adjustmentType === 'add' ? '✓ Add to Position' : '✓ Reduce Position'}
         </button>
+      )}
+
+      {/* Edit Entry Modal */}
+      {editingEntry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg border border-gray-700 max-w-md w-full p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-700 text-metric">Edit Entry</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                {position.entries[editingEntry.index].type === 'initial' ? 'Initial Entry' :
+                 position.entries[editingEntry.index].type === 'add' ? 'Add Position' : 'Reduce Position'}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block font-600">Entry Price</label>
+                <input
+                  type="number"
+                  step="0.00000001"
+                  value={editingEntry.entryPrice}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, entryPrice: e.target.value })}
+                  className="input-field w-full text-lg font-600 text-metric"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block font-600">Size (USD)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={editingEntry.size}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, size: e.target.value })}
+                  className="input-field w-full text-lg font-600 text-metric"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block font-600">Leverage</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editingEntry.leverage}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, leverage: e.target.value })}
+                  className="input-field w-full text-lg font-600 text-metric"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancelEdit}
+                className="flex-1 px-4 py-3 rounded-lg text-sm font-600 text-gray-400 hover:text-gray-300 bg-gray-700/30 hover:bg-gray-700/50 transition-colors flex items-center justify-center gap-2"
+              >
+                <X size={16} />
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 px-4 py-3 rounded-lg text-sm font-600 text-profit bg-profit/20 hover:bg-profit/30 border border-profit transition-colors flex items-center justify-center gap-2"
+              >
+                <Check size={16} />
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
