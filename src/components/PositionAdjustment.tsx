@@ -360,7 +360,12 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
     <div className="w-full py-8 sm:py-12">
       {/* Entry Chain History */}
       <div className="mb-20 sm:mb-24">
-        <h3 className="text-label mb-12 sm:mb-16">Position Chain History</h3>
+        <div className="flex items-center gap-3 mb-12 sm:mb-16">
+          <h3 className="text-label">Position Chain History</h3>
+          <span className="text-sm font-600 px-3 py-1 rounded bg-neutral/20 text-neutral">
+            {position.symbol.toUpperCase()}
+          </span>
+        </div>
 
         <div className="space-y-4">
           {position.entries.map((entry, idx) => {
@@ -374,6 +379,46 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
               }
             }
             runningTotalSize = Math.max(runningTotalSize, 0);
+
+            // Calculate cumulative weighted average entry price using FIFO logic
+            let cumulativeWeightedEntryPrice = entry.entryPrice;
+            if (entry.type !== 'subtract') {
+              // For open entries, calculate the cumulative weighted average up to this point
+              let openSize = 0;
+              let openWeightedEntryPrice = 0;
+              let closedSize = 0;
+
+              for (let i = 0; i <= idx; i++) {
+                if (position.entries[i].type === 'subtract') {
+                  closedSize += position.entries[i].size;
+                } else {
+                  openSize += position.entries[i].size;
+                  openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                }
+              }
+
+              // FIFO: apply closed amounts to oldest entries
+              let closedRemaining = closedSize;
+              let remainingWeightedEntryPrice = 0;
+
+              for (let i = 0; i <= idx; i++) {
+                if (position.entries[i].type !== 'subtract') {
+                  if (closedRemaining <= 0) {
+                    remainingWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                  } else if (closedRemaining < position.entries[i].size) {
+                    const remainingFromEntry = position.entries[i].size - closedRemaining;
+                    remainingWeightedEntryPrice += remainingFromEntry * position.entries[i].entryPrice;
+                    closedRemaining = 0;
+                  } else {
+                    closedRemaining -= position.entries[i].size;
+                  }
+                }
+              }
+
+              if (runningTotalSize > 0) {
+                cumulativeWeightedEntryPrice = remainingWeightedEntryPrice / runningTotalSize;
+              }
+            }
 
             // Calculate PNL for this specific entry
             let entryPNL = 0;
@@ -442,8 +487,15 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
 
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6">
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">{entry.type === 'subtract' ? 'Close Price' : 'Entry Price'}</p>
-                    <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(entry.entryPrice)}</p>
+                    <p className="text-xs text-gray-500 mb-2">
+                      {entry.type === 'subtract' ? 'Close Price' : entry.type === 'add' ? 'Avg Entry (after add)' : 'Entry Price'}
+                    </p>
+                    <p className="text-lg sm:text-xl font-600 text-metric">
+                      ${formatNumber(entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)}
+                    </p>
+                    {entry.type === 'add' && (
+                      <p className="text-xs text-gray-400 mt-1">Entry: ${formatNumber(entry.entryPrice)}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-2">Size (USD)</p>
@@ -535,6 +587,29 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                         {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
                       </p>
                     </div>
+
+                    {/* Show potential profit at take profit level */}
+                    {position.takeProfit && position.takeProfit !== 0 && (
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Potential Profit at TP (${formatNumber(position.takeProfit)})</p>
+                        {(() => {
+                          const tpPriceDiff = position.takeProfit - cumulativeWeightedEntryPrice;
+                          const tpPNLPercent = (tpPriceDiff / cumulativeWeightedEntryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+                          const tpPNLUSD = entry.size * (tpPriceDiff / cumulativeWeightedEntryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+
+                          return (
+                            <div className="space-y-2">
+                              <p className={`text-lg font-600 ${tpPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                {tpPNLUSD >= 0 ? '+' : ''}${formatNumber(tpPNLUSD, 2)}
+                              </p>
+                              <p className={`text-xs ${tpPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                {tpPNLPercent >= 0 ? '+' : ''}{formatNumber(tpPNLPercent, 2)}%
+                              </p>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -548,7 +623,12 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
         {/* Live Market Price Card */}
         {livePrice?.price && (
           <div className="mb-12 sm:mb-16 card-bg">
-            <p className="text-label mb-6">Current Market Price</p>
+            <div className="flex items-center gap-3 mb-6">
+              <p className="text-label">Current Market Price</p>
+              <span className="text-sm font-600 px-3 py-1 rounded bg-neutral/20 text-neutral">
+                {position.symbol.toUpperCase()}
+              </span>
+            </div>
             <div className="flex items-baseline gap-4 mb-6">
               <p className="text-5xl sm:text-6xl font-700 text-metric">
                 ${formatNumber(livePrice.price, 2)}
@@ -712,7 +792,7 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                 step="0.00000001"
                 value={newEntryPrice}
                 onChange={(e) => setNewEntryPrice(e.target.value)}
-                placeholder={`e.g., ${totals.averageEntryPrice}`}
+                placeholder={`e.g., ${formatNumber(totals.averageEntryPrice)}`}
                 className="input-field w-full text-2xl sm:text-3xl font-600 text-metric"
               />
               {livePrice?.price && (
