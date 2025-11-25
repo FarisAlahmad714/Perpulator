@@ -517,99 +517,138 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                   </div>
                 </div>
 
+                {/* Stop Loss Info */}
+                {position.stopLoss && entry.type !== 'subtract' && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Stop Loss Level</p>
+                        <p className="text-lg font-600 text-loss">${formatNumber(position.stopLoss)}</p>
+                      </div>
+                      {(() => {
+                        const slPriceDiff = position.stopLoss - (entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice);
+                        const slPNLPercent = (slPriceDiff / (entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+                        const slPNLUSD = entry.size * (slPriceDiff / (entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+
+                        return (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-2">PNL if SL Hit</p>
+                            <div className="space-y-1">
+                              <p className="text-lg font-600 text-loss">
+                                {slPNLUSD >= 0 ? '+' : ''}${formatNumber(slPNLUSD, 2)}
+                              </p>
+                              <p className="text-xs text-gray-400">
+                                {slPNLPercent >= 0 ? '+' : ''}{formatNumber(slPNLPercent, 2)}%
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
                 {/* PNL Details */}
                 {entry.type === 'subtract' ? (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Realized PNL (USD)</p>
-                      <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                        {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
-                      </p>
-                    </div>
-
-                    {/* For reduce entries, also show current PNL of remaining position */}
-                    {runningTotalSize > 0 && livePrice?.price && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {/* For reduce entries, show realized PNL and current PNL of remaining side by side */}
+                    <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <p className="text-xs text-gray-500 mb-2">Current PNL of Remaining %</p>
-                        {(() => {
-                          // Calculate current PNL of the remaining position
-                          let remainingAvgEntry = 0;
-                          let remainingSize = 0;
-                          let remainingLeverage = 1;
-
-                          // Calculate remaining position metrics at this point
-                          let openSize = 0;
-                          let openLeveragedCapital = 0;
-                          let openWeightedEntryPrice = 0;
-                          let closedSize = 0;
-
-                          for (let i = 0; i <= idx; i++) {
-                            if (position.entries[i].type === 'subtract') {
-                              closedSize += position.entries[i].size;
-                            } else {
-                              openSize += position.entries[i].size;
-                              openLeveragedCapital += position.entries[i].size * position.entries[i].leverage;
-                              openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
-                            }
-                          }
-
-                          remainingSize = Math.max(openSize - closedSize, 0);
-                          if (openSize > 0 && remainingSize > 0) {
-                            const scaleFactor = remainingSize / openSize;
-                            remainingAvgEntry = (openWeightedEntryPrice * scaleFactor) / remainingSize;
-                            remainingLeverage = (openLeveragedCapital * scaleFactor) / remainingSize;
-                          }
-
-                          const remainingPriceDiff = livePrice.price - remainingAvgEntry;
-                          const remainingPNLPercent = (remainingPriceDiff / remainingAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
-                          const remainingPNLUSD = remainingSize * (remainingPriceDiff / remainingAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
-
-                          return (
-                            <div className="space-y-3">
-                              <p className={`text-lg font-600 ${remainingPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                {remainingPNLPercent >= 0 ? '+' : ''}{formatNumber(remainingPNLPercent, 2)}%
-                              </p>
-                              <p className="text-xs text-gray-500">Current PNL of Remaining (USD)</p>
-                              <p className={`text-lg font-600 ${remainingPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                {remainingPNLUSD >= 0 ? '+' : ''}${formatNumber(remainingPNLUSD, 2)}
-                              </p>
-                            </div>
-                          );
-                        })()}
+                        <p className="text-xs text-gray-500 mb-2">Realized PNL (USD)</p>
+                        <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                          {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
+                        </p>
                       </div>
-                    )}
+
+                      {/* For reduce entries, also show current PNL of remaining position */}
+                      {runningTotalSize > 0 && livePrice?.price && (
+                        <div>
+                          {(() => {
+                            // Calculate current PNL of the remaining position
+                            let remainingAvgEntry = 0;
+                            let remainingSize = 0;
+                            let remainingLeverage = 1;
+
+                            // Calculate remaining position metrics at this point
+                            let openSize = 0;
+                            let openLeveragedCapital = 0;
+                            let openWeightedEntryPrice = 0;
+                            let closedSize = 0;
+
+                            for (let i = 0; i <= idx; i++) {
+                              if (position.entries[i].type === 'subtract') {
+                                closedSize += position.entries[i].size;
+                              } else {
+                                openSize += position.entries[i].size;
+                                openLeveragedCapital += position.entries[i].size * position.entries[i].leverage;
+                                openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                              }
+                            }
+
+                            remainingSize = Math.max(openSize - closedSize, 0);
+                            if (openSize > 0 && remainingSize > 0) {
+                              const scaleFactor = remainingSize / openSize;
+                              remainingAvgEntry = (openWeightedEntryPrice * scaleFactor) / remainingSize;
+                              remainingLeverage = (openLeveragedCapital * scaleFactor) / remainingSize;
+                            }
+
+                            const remainingPriceDiff = livePrice.price - remainingAvgEntry;
+                            const remainingPNLPercent = (remainingPriceDiff / remainingAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
+                            const remainingPNLUSD = remainingSize * (remainingPriceDiff / remainingAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
+
+                            return (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-2">Current PNL of Remaining (USD)</p>
+                                <div className="space-y-1">
+                                  <p className={`text-lg font-600 ${remainingPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                    {remainingPNLUSD >= 0 ? '+' : ''}${formatNumber(remainingPNLUSD, 2)}
+                                  </p>
+                                  <p className={`text-xs ${remainingPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                    {remainingPNLPercent >= 0 ? '+' : ''}{formatNumber(remainingPNLPercent, 2)}%
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50 space-y-4">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Current PNL (USD)</p>
-                      <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                        {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
-                      </p>
-                    </div>
-
-                    {/* Show potential profit at take profit level */}
-                    {position.takeProfit && position.takeProfit !== 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <p className="text-xs text-gray-500 mb-2">Potential Profit at TP (${formatNumber(position.takeProfit)})</p>
-                        {(() => {
-                          const tpPriceDiff = position.takeProfit - cumulativeWeightedEntryPrice;
-                          const tpPNLPercent = (tpPriceDiff / cumulativeWeightedEntryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-                          const tpPNLUSD = entry.size * (tpPriceDiff / cumulativeWeightedEntryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-
-                          return (
-                            <div className="space-y-2">
-                              <p className={`text-lg font-600 ${tpPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                {tpPNLUSD >= 0 ? '+' : ''}${formatNumber(tpPNLUSD, 2)}
-                              </p>
-                              <p className={`text-xs ${tpPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                {tpPNLPercent >= 0 ? '+' : ''}{formatNumber(tpPNLPercent, 2)}%
-                              </p>
-                            </div>
-                          );
-                        })()}
+                        <p className="text-xs text-gray-500 mb-2">Current PNL (USD)</p>
+                        <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                          {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
+                        </p>
                       </div>
-                    )}
+
+                      {/* Show potential profit at take profit level */}
+                      {position.takeProfit && position.takeProfit !== 0 && (
+                        <div>
+                          {(() => {
+                            const tpPriceDiff = position.takeProfit - cumulativeWeightedEntryPrice;
+                            const tpPNLPercent = (tpPriceDiff / cumulativeWeightedEntryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+                            const tpPNLUSD = entry.size * (tpPriceDiff / cumulativeWeightedEntryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+
+                            return (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-2">Potential Profit at TP (${formatNumber(position.takeProfit)})</p>
+                                <div className="space-y-1">
+                                  <p className={`text-lg font-600 ${tpPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                    {tpPNLUSD >= 0 ? '+' : ''}${formatNumber(tpPNLUSD, 2)}
+                                  </p>
+                                  <p className={`text-xs ${tpPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                    {tpPNLPercent >= 0 ? '+' : ''}{formatNumber(tpPNLPercent, 2)}%
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
