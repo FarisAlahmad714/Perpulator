@@ -50,17 +50,33 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
       }
     }
 
-    // Calculate remaining open position
+    // Calculate remaining open position (FIFO: closed positions come from oldest entries first)
     const remainingSize = Math.max(openSize - closedSize, 0);
 
-    // Scale the metrics proportionally (FIFO logic: closed positions come from the open entries proportionally)
+    // For weighted average, we need to account for which entries contributed to remaining position
+    // Using FIFO: closed positions are taken from the oldest (first) open entries
+    let closedRemaining = closedSize;
     let remainingWeightedEntryPrice = 0;
     let remainingLeveragedCapital = 0;
 
-    if (openSize > 0 && remainingSize > 0) {
-      const scaleFactor = remainingSize / openSize;
-      remainingWeightedEntryPrice = openWeightedEntryPrice * scaleFactor;
-      remainingLeveragedCapital = openLeveragedCapital * scaleFactor;
+    // Go through entries forward (oldest to newest) to apply FIFO close logic
+    for (const entry of position.entries) {
+      if (entry.type !== 'subtract') {
+        if (closedRemaining <= 0) {
+          // This entry is fully remaining
+          remainingWeightedEntryPrice += entry.size * entry.entryPrice;
+          remainingLeveragedCapital += entry.size * entry.leverage;
+        } else if (closedRemaining < entry.size) {
+          // Part of this entry is remaining
+          const remainingFromThisEntry = entry.size - closedRemaining;
+          remainingWeightedEntryPrice += remainingFromThisEntry * entry.entryPrice;
+          remainingLeveragedCapital += remainingFromThisEntry * entry.leverage;
+          closedRemaining = 0;
+        } else {
+          // This entire entry is closed
+          closedRemaining -= entry.size;
+        }
+      }
     }
 
     const averageEntryPrice = remainingSize !== 0 ? remainingWeightedEntryPrice / remainingSize : 0;
@@ -130,17 +146,33 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
       }
     }
 
-    // Calculate remaining open position
+    // Calculate remaining open position (FIFO: closed positions come from oldest entries first)
     const totalSize = Math.max(openSize - closedSize, 0);
 
-    // Scale the metrics proportionally
+    // For weighted average, we need to account for which entries contributed to remaining position
+    // Using FIFO: closed positions are taken from the oldest (first) open entries
+    let closedRemaining = closedSize;
     let remainingWeightedEntryPrice = 0;
     let remainingLeveragedCapital = 0;
 
-    if (openSize > 0 && totalSize > 0) {
-      const scaleFactor = totalSize / openSize;
-      remainingWeightedEntryPrice = openWeightedEntryPrice * scaleFactor;
-      remainingLeveragedCapital = openLeveragedCapital * scaleFactor;
+    // Go through entries forward (oldest to newest) to apply FIFO close logic
+    for (const entry of projectedPosition.entries) {
+      if (entry.type !== 'subtract') {
+        if (closedRemaining <= 0) {
+          // This entry is fully remaining
+          remainingWeightedEntryPrice += entry.size * entry.entryPrice;
+          remainingLeveragedCapital += entry.size * entry.leverage;
+        } else if (closedRemaining < entry.size) {
+          // Part of this entry is remaining
+          const remainingFromThisEntry = entry.size - closedRemaining;
+          remainingWeightedEntryPrice += remainingFromThisEntry * entry.entryPrice;
+          remainingLeveragedCapital += remainingFromThisEntry * entry.leverage;
+          closedRemaining = 0;
+        } else {
+          // This entire entry is closed
+          closedRemaining -= entry.size;
+        }
+      }
     }
 
     const averageEntryPrice = totalSize !== 0 ? remainingWeightedEntryPrice / totalSize : 0;
