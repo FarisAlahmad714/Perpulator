@@ -9,7 +9,13 @@ export const metadata: Metadata = {
   icons: {
     icon: '/assets/logos/logo-favicon.png',
     shortcut: '/assets/logos/logo-favicon.png',
-    apple: '/assets/logos/logo-favicon.png',
+    apple: '/assets/logos/logo-primary.png',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Perpulator',
   },
 };
 
@@ -22,8 +28,6 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
         {/* Google Analytics */}
         <Script

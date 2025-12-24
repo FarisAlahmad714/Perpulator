@@ -1,0 +1,23 @@
+{
+  "name": "Perpulator - Perpetual Futures Position Calculator",
+  "short_name": "Perpulator",
+  "description": "Calculate position sizes and risk/reward ratios for crypto perpetual trading",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1d29",
+  "theme_color": "#1a1d29",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/logos/logo-primary.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logos/logo-favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
