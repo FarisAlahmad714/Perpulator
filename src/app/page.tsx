@@ -112,7 +112,13 @@ export default function Home() {
                     </button>
                   )}
                   <h1 className="text-6xl sm:text-7xl font-700 text-white tracking-tighter leading-tight">
-                    {showSavedPositions ? 'Saved Positions' : 'Perpulator'}
+                    {showSavedPositions ? 'Saved Positions' : (
+                      <img
+                        src="/assets/logos/header.png"
+                        alt="Perpulator"
+                        className="h-16 sm:h-20 w-auto"
+                      />
+                    )}
                   </h1>
                 </div>
 
@@ -239,30 +245,22 @@ export default function Home() {
               </p>
             </div>
 
-            {/* 50/50 Split: Logo & Company Info (Responsive) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-12 items-center">
-              {/* Logo Side */}
-              <div className="flex justify-center">
-                <img
-                  src="/assets/logos/logo-primary.png"
-                  alt="Perpulator"
-                  className="h-32 sm:h-48 w-auto"
-                />
-              </div>
-
-              {/* Company Info Side */}
-              <div className="space-y-2 text-center sm:text-left">
-                <h4 className="text-lg font-600 text-white">Perpulator</h4>
-                <p className="text-xs text-gray-400">
-                  Professional Perpetual Futures Analysis
-                </p>
-                <p className="text-xs text-gray-500 pt-3">
-                  © 2025 Mithril Labs LLC
-                </p>
-                <p className="text-xs text-gray-500">
-                  All rights reserved.
-                </p>
-              </div>
+            {/* Company Info - Centered */}
+            <div className="flex flex-col items-center text-center space-y-2">
+              <img
+                src="/assets/logos/logo-primary2.png"
+                alt="Perpulator"
+                className="h-32 sm:h-48 w-auto"
+              />
+              <p className="text-xs text-gray-400">
+                Professional Perpetual Futures Analysis
+              </p>
+              <p className="text-xs text-gray-500 pt-3">
+                © 2025 Mithril Labs LLC
+              </p>
+              <p className="text-xs text-gray-500">
+                All rights reserved.
+              </p>
             </div>
           </div>
         </footer>
