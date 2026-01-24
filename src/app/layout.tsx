@@ -4,7 +4,7 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://perpulator.com'),
+  metadataBase: new URL('https://perpulator.vercel.app'),
   title: 'Perpulator - Perpetual Futures Position Calculator',
   description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
   icons: {
@@ -21,11 +21,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Perpulator - Perpetual Futures Position Calculator',
     description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
-    url: 'https://perpulator.com',
+    url: 'https://perpulator.vercel.app',
     siteName: 'Perpulator',
     images: [
       {
-        url: 'https://perpulator.com/assets/logos/logo-primary.png',
+        url: 'https://perpulator.vercel.app/assets/logos/logo-primary.png',
         width: 1024,
         height: 1024,
         alt: 'Perpulator - Professional Perpetual Futures Analysis',
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Perpulator - Perpetual Futures Position Calculator',
     description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
-    images: ['https://perpulator.com/assets/logos/logo-primary.png'],
+    images: ['https://perpulator.vercel.app/assets/logos/logo-primary.png'],
   },
 };
 
