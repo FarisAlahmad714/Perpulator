@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://perpulator.com'),
   title: 'Perpulator - Perpetual Futures Position Calculator',
   description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
   icons: {
@@ -24,9 +25,9 @@ export const metadata: Metadata = {
     siteName: 'Perpulator',
     images: [
       {
-        url: '/assets/logos/logo-primary.png',
-        width: 1200,
-        height: 630,
+        url: 'https://perpulator.com/assets/logos/logo-primary.png',
+        width: 1024,
+        height: 1024,
         alt: 'Perpulator - Professional Perpetual Futures Analysis',
       },
     ],
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Perpulator - Perpetual Futures Position Calculator',
     description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
-    images: ['/assets/logos/logo-primary.png'],
+    images: ['https://perpulator.com/assets/logos/logo-primary.png'],
   },
 };
 
