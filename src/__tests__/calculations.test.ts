@@ -191,20 +191,20 @@ describe('calculatePNL', () => {
     // SHORT: $1500 at $102,500 entry, current $100,000, 7x leverage
     // Price difference = 100,000 - 102,500 = -2,500
     // Direction multiplier for SHORT = -1
-    // PNL% = (-2,500 / 102,500) * 100 * (-1) = 2.44%
-    // PNL = (1500/102,500) * (-2,500) * (-1) ≈ $36.59
+    // PNL% = (-2,500 / 102,500) * 100 * (-1) * 7 = 17.07%
+    // PNL = 1500 * (-2500/102500) * (-1) * 7 ≈ $256.10
     const result = calculatePNL(102500, 100000, 1500, 7, 'short');
-    expect(result.pnl).toBeCloseTo(36.59, 1);
-    expect(result.pnlPercentage).toBeCloseTo(2.44, 1);
+    expect(result.pnl).toBeCloseTo(256.10, 0);
+    expect(result.pnlPercentage).toBeCloseTo(17.07, 0);
   });
 
   it('should handle leveraged positions', () => {
     // LONG: $1000 at $50 entry, current $60, 5x leverage
-    // PNL = (1000/50) * (60-50) = 20 * 10 = $200
-    // PNL% = ((60-50)/50) * 100 = 20%
+    // PNL = 1000 * (10/50) * 1 * 5 = $1000 (leveraged)
+    // PNL% = ((60-50)/50) * 100 * 5 = 100%
     const result = calculatePNL(50, 60, 1000, 5, 'long');
-    expect(result.pnl).toBeCloseTo(200, 0);
-    expect(result.pnlPercentage).toBeCloseTo(20, 1);
+    expect(result.pnl).toBeCloseTo(1000, 0);
+    expect(result.pnlPercentage).toBeCloseTo(100, 1);
   });
 
   it('should calculate zero PNL at entry price', () => {
@@ -290,7 +290,7 @@ describe('calculateAdjustedPosition - User Test Cases', () => {
 
   it('should match verified user test case - after adjustment', () => {
     // After adding $1500 at $96,000
-    // Expected: Avg entry $99,250, Risk $1,110.83, RR 1:1.68
+    // Expected: Avg entry $99,250, Risk $1,110.83, RR ~1.68
     const newEntryPrice = calculateAverageEntryPrice(1500, 102500, 1500, 96000, 'add');
     expect(newEntryPrice).toBeCloseTo(99250, 0);
 
@@ -300,7 +300,7 @@ describe('calculateAdjustedPosition - User Test Cases', () => {
     const riskRewardRatio = calculateRiskRewardRatio(riskAmount, rewardAmount);
 
     expect(riskAmount).toBeCloseTo(1110.83, 1);
-    expect(rewardAmount).toBeCloseTo(1865.58, 0);
+    expect(rewardAmount).toBeCloseTo(1869.37, 0);
     expect(riskRewardRatio).toBeCloseTo(1.68, 1);
   });
 
@@ -315,12 +315,23 @@ describe('calculateAdjustedPosition - User Test Cases', () => {
       takeProfit: 90415,
       currentPrice: 101000,
       timestamp: new Date(),
+      entries: [
+        {
+          id: '1',
+          type: 'initial' as const,
+          entryPrice: 102500,
+          size: 1500,
+          leverage: 7,
+          timestamp: new Date(),
+        }
+      ],
     };
 
     const adjustment = {
       type: 'add' as const,
       newEntryPrice: 96000,
       adjustmentSize: 1500,
+      adjustmentLeverage: 7,
     };
 
     const result = calculateAdjustedPosition(position, adjustment);

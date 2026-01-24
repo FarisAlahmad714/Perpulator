@@ -5,7 +5,7 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Perpulator - Perpetual Futures Position Calculator',
-  description: 'Calculate position sizes and risk/reward ratios for crypto perpetual trading',
+  description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
   icons: {
     icon: '/assets/logos/logo-favicon.png',
     shortcut: '/assets/logos/logo-favicon.png',
@@ -16,6 +16,28 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Perpulator',
+  },
+  openGraph: {
+    title: 'Perpulator - Perpetual Futures Position Calculator',
+    description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
+    url: 'https://perpulator.com',
+    siteName: 'Perpulator',
+    images: [
+      {
+        url: '/assets/logos/logo-primary.png',
+        width: 1200,
+        height: 630,
+        alt: 'Perpulator - Professional Perpetual Futures Analysis',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Perpulator - Perpetual Futures Position Calculator',
+    description: 'Professional perpetual futures analysis tool. Calculate position sizes, risk/reward ratios, and manage your crypto trading positions.',
+    images: ['/assets/logos/logo-primary.png'],
   },
 };
 
