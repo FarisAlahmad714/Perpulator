@@ -7,7 +7,7 @@ import PriceIndicator from '@/components/PriceIndicator';
 import SavedPositionsList from '@/components/SavedPositionsList';
 import { Position } from '@/types/position';
 import { usePositionStorage } from '@/hooks/usePositionStorage';
-import { Save, ChevronLeft } from 'lucide-react';
+import { Save, ChevronLeft, HelpCircle, ChevronDown } from 'lucide-react';
 
 export default function Home() {
   const [position, setPosition] = useState<Position | null>(null);
@@ -15,6 +15,7 @@ export default function Home() {
   const [showSavedPositions, setShowSavedPositions] = useState(false);
   const [savedPositions, setSavedPositions] = useState<Position[]>([]);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const {
     saveActivePosition,
     loadActivePosition,
@@ -151,55 +152,49 @@ export default function Home() {
             />
           ) : !showAdjustment ? (
             <>
-              {/* How It Works Guide */}
-              <div className="mb-20 sm:mb-28">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-                  {/* Step 1 */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-neutral/20 flex items-center justify-center text-xs font-700 text-neutral">
-                        1
-                      </div>
-                      <h3 className="text-label text-neutral">Enter Position</h3>
-                    </div>
-                    <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-                      Input your crypto symbol, entry price, position size, and leverage
-                    </p>
-                  </div>
+              {/* How It Works - Collapsible */}
+              <div className="mb-12 sm:mb-16">
+                <button
+                  onClick={() => setShowHowItWorks(!showHowItWorks)}
+                  className="flex items-center gap-2 text-sm font-600 text-gray-400 hover:text-neutral transition-colors"
+                >
+                  <HelpCircle size={16} />
+                  <span>How It Works</span>
+                  <ChevronDown size={14} className={`transition-transform ${showHowItWorks ? 'rotate-180' : ''}`} />
+                </button>
 
-                  {/* Step 2 */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-neutral/20 flex items-center justify-center text-xs font-700 text-neutral">
-                        2
+                {showHowItWorks && (
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-8 animate-fade-in-up">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-neutral/20 flex items-center justify-center text-xs font-700 text-neutral">1</div>
+                        <h3 className="text-label text-neutral">Enter Position</h3>
                       </div>
-                      <h3 className="text-label text-neutral">Set Targets</h3>
+                      <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">Input your crypto symbol, entry price, position size, and leverage</p>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-                      Define your stop loss and take profit levels for risk management
-                    </p>
-                  </div>
-
-                  {/* Step 3 */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-neutral/20 flex items-center justify-center text-xs font-700 text-neutral">
-                        3
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-neutral/20 flex items-center justify-center text-xs font-700 text-neutral">2</div>
+                        <h3 className="text-label text-neutral">Set Targets</h3>
                       </div>
-                      <h3 className="text-label text-neutral">Analyze & Adjust</h3>
+                      <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">Define your stop loss and take profit levels for risk management</p>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
-                      View risk/reward ratios and test adjustments in real-time
-                    </p>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-neutral/20 flex items-center justify-center text-xs font-700 text-neutral">3</div>
+                        <h3 className="text-label text-neutral">Analyze & Adjust</h3>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">View risk/reward ratios and test adjustments in real-time</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <PositionForm onSubmit={handlePositionSubmit} />
             </>
           ) : position ? (
             <div className="space-y-8">
-              <PositionAdjustment position={position} onPositionUpdate={handlePositionUpdate} />
+              <PositionAdjustment position={position} onPositionUpdate={handlePositionUpdate} onReset={handleNewPosition} />
 
               {/* Save Position & New Position Buttons */}
               <div className="flex gap-4">

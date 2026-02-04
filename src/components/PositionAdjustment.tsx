@@ -11,11 +11,12 @@ import {
 } from '@/utils/calculations';
 import { usePrice } from '@/contexts/PriceContext';
 import { trackPositionAdjusted } from '@/lib/analytics';
-import { Plus, Minus, Info, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Plus, Minus, Info, Trash2, Edit2, Check, X, RotateCcw, ChevronDown } from 'lucide-react';
 
 interface PositionAdjustmentProps {
   position: Position;
   onPositionUpdate: (updatedPosition: Position) => void;
+  onReset?: () => void;
 }
 
 interface EditingEntry {
@@ -23,10 +24,13 @@ interface EditingEntry {
   entryPrice: string;
   size: string;
   leverage: string;
+  takeProfit: string;
+  stopLoss: string;
 }
 
-export default function PositionAdjustment({ position, onPositionUpdate }: PositionAdjustmentProps) {
+export default function PositionAdjustment({ position, onPositionUpdate, onReset }: PositionAdjustmentProps) {
   const [adjustmentType, setAdjustmentType] = useState<'add' | 'subtract'>('add');
+  const [showAllEntries, setShowAllEntries] = useState(false);
   const [newEntryPrice, setNewEntryPrice] = useState('');
   const [adjustmentSizeUSD, setAdjustmentSizeUSD] = useState('');
   const [adjustmentSizePercent, setAdjustmentSizePercent] = useState('');
@@ -90,14 +94,36 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
     const averageEntryPrice = remainingSize !== 0 ? remainingWeightedEntryPrice / remainingSize : 0;
     const averageLeverage = remainingSize !== 0 ? remainingLeveragedCapital / remainingSize : 1;
 
+    // Calculate total realized PNL from all reduce entries
+    let totalRealizedPNL = 0;
+    let totalRealizedPNLPercent = 0;
+    let reduceCount = 0;
+    for (let i = 0; i < position.entries.length; i++) {
+      const entry = position.entries[i];
+      if (entry.type === 'subtract') {
+        reduceCount++;
+        let prevTotalSize = 0;
+        let prevWeightedEntryPrice = 0;
+        for (let j = 0; j < i; j++) {
+          prevTotalSize += position.entries[j].type === 'subtract' ? -position.entries[j].size : position.entries[j].size;
+          prevWeightedEntryPrice += (position.entries[j].type === 'subtract' ? -position.entries[j].size : position.entries[j].size) * position.entries[j].entryPrice;
+        }
+        const prevAvgEntry = prevTotalSize !== 0 ? prevWeightedEntryPrice / prevTotalSize : entry.entryPrice;
+        const priceDiff = entry.entryPrice - prevAvgEntry;
+        totalRealizedPNL += entry.size * (priceDiff / prevAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+      }
+    }
+
     return {
       totalSize: remainingSize,
       totalCapital: remainingSize,
       totalLeveragedCapital: remainingLeveragedCapital,
       averageEntryPrice: Math.abs(averageEntryPrice),
       averageLeverage: Math.abs(averageLeverage),
+      totalRealizedPNL,
+      reduceCount,
     };
-  }, [position.entries]);
+  }, [position.entries, position.sideEntry]);
 
   // Calculate actual adjustment size in USD based on input mode
   const actualAdjustmentSizeUSD = sizeInputMode === 'percent' && adjustmentSizePercent
@@ -329,10 +355,12 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
           leverage: proposedAdjustment.adjustmentLeverage,
           timestamp: new Date(),
           type: proposedAdjustment.type,
+          takeProfit: takeProfitPrice ? parseFloat(takeProfitPrice) : position.takeProfit,
+          stopLoss: stopLossPrice ? parseFloat(stopLossPrice) : position.stopLoss,
         },
       ],
       stopLoss: stopLossPrice ? parseFloat(stopLossPrice) : position.stopLoss,
-      takeProfit: proposedAdjustment.takeProfit || position.takeProfit,
+      takeProfit: takeProfitPrice ? parseFloat(takeProfitPrice) : position.takeProfit,
       currentPrice: livePrice?.price,
     };
 
@@ -364,6 +392,8 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
       entryPrice: String(entry.entryPrice),
       size: String(entry.size),
       leverage: String(entry.leverage),
+      stopLoss: entry.stopLoss ? String(entry.stopLoss) : '',
+      takeProfit: entry.takeProfit ? String(entry.takeProfit) : '',
     });
   };
 
@@ -373,8 +403,20 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
     const entryPrice = parseFloat(editingEntry.entryPrice);
     const size = parseFloat(editingEntry.size);
     const leverage = parseFloat(editingEntry.leverage);
+    const editSL = editingEntry.stopLoss ? parseFloat(editingEntry.stopLoss) : undefined;
+    const editTP = editingEntry.takeProfit ? parseFloat(editingEntry.takeProfit) : undefined;
 
     if (!entryPrice || !size || !leverage) return;
+
+    // Validate SL/TP direction
+    if (editSL) {
+      if (position.sideEntry === 'long' && editSL >= entryPrice) return;
+      if (position.sideEntry === 'short' && editSL <= entryPrice) return;
+    }
+    if (editTP) {
+      if (position.sideEntry === 'long' && editTP <= entryPrice) return;
+      if (position.sideEntry === 'short' && editTP >= entryPrice) return;
+    }
 
     const updatedEntries = [...position.entries];
     updatedEntries[editingEntry.index] = {
@@ -382,6 +424,8 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
       entryPrice,
       size,
       leverage,
+      stopLoss: editSL,
+      takeProfit: editTP,
     };
 
     const updatedPosition: Position = {
@@ -404,320 +448,55 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
     }).format(value);
   };
 
+  // Determine which entries to show in chain history
+  const entriesToShow = showAllEntries
+    ? position.entries
+    : position.entries.length <= 2
+      ? position.entries
+      : position.entries.slice(-2);
+  const hiddenCount = position.entries.length - entriesToShow.length;
+  const entryStartIndex = showAllEntries ? 0 : position.entries.length - entriesToShow.length;
+
   return (
     <div className="w-full py-8 sm:py-12">
-      {/* Entry Chain History */}
-      <div className="mb-20 sm:mb-24">
-        <div className="flex items-center gap-3 mb-12 sm:mb-16">
-          <h3 className="text-label">Position Chain History</h3>
-          <span className="text-sm font-600 px-3 py-1 rounded bg-neutral/20 text-neutral">
-            {position.symbol.toUpperCase()}
-          </span>
-        </div>
-
-        <div className="space-y-4">
-          {position.entries.map((entry, idx) => {
-            // Calculate running total position size up to this entry
-            let runningTotalSize = 0;
-            for (let i = 0; i <= idx; i++) {
-              if (position.entries[i].type === 'subtract') {
-                runningTotalSize -= position.entries[i].size;
-              } else {
-                runningTotalSize += position.entries[i].size;
-              }
-            }
-            runningTotalSize = Math.max(runningTotalSize, 0);
-
-            // Calculate cumulative weighted average entry price using FIFO logic
-            let cumulativeWeightedEntryPrice = entry.entryPrice;
-            if (entry.type !== 'subtract') {
-              // For open entries, calculate the cumulative weighted average up to this point
-              let openSize = 0;
-              let openWeightedEntryPrice = 0;
-              let closedSize = 0;
-
-              for (let i = 0; i <= idx; i++) {
-                if (position.entries[i].type === 'subtract') {
-                  closedSize += position.entries[i].size;
-                } else {
-                  openSize += position.entries[i].size;
-                  openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
-                }
-              }
-
-              // FIFO: apply closed amounts to oldest entries
-              let closedRemaining = closedSize;
-              let remainingWeightedEntryPrice = 0;
-
-              for (let i = 0; i <= idx; i++) {
-                if (position.entries[i].type !== 'subtract') {
-                  if (closedRemaining <= 0) {
-                    remainingWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
-                  } else if (closedRemaining < position.entries[i].size) {
-                    const remainingFromEntry = position.entries[i].size - closedRemaining;
-                    remainingWeightedEntryPrice += remainingFromEntry * position.entries[i].entryPrice;
-                    closedRemaining = 0;
-                  } else {
-                    closedRemaining -= position.entries[i].size;
-                  }
-                }
-              }
-
-              if (runningTotalSize > 0) {
-                cumulativeWeightedEntryPrice = remainingWeightedEntryPrice / runningTotalSize;
-              }
-            }
-
-            // Calculate PNL for this specific entry
-            let entryPNL = 0;
-            let entryPNLPercent = 0;
-            let entryClosePrice = entry.entryPrice;
-
-            if (entry.type === 'subtract') {
-              // For reduce entries: calculate PNL from previous average entry to close price
-              let prevTotalSize = 0;
-              let prevWeightedEntryPrice = 0;
-              for (let i = 0; i < idx; i++) {
-                prevTotalSize += position.entries[i].type === 'subtract' ? -position.entries[i].size : position.entries[i].size;
-                prevWeightedEntryPrice += (position.entries[i].type === 'subtract' ? -position.entries[i].size : position.entries[i].size) * position.entries[i].entryPrice;
-              }
-              const prevAvgEntry = prevTotalSize !== 0 ? prevWeightedEntryPrice / prevTotalSize : entry.entryPrice;
-              const priceDiff = entry.entryPrice - prevAvgEntry;
-              entryPNLPercent = (priceDiff / prevAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-              entryPNL = entry.size * (priceDiff / prevAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-              entryClosePrice = entry.entryPrice;
-            } else {
-              // For initial/add entries: calculate PNL from entry to current price
-              if (livePrice?.price) {
-                const priceDiff = livePrice.price - entry.entryPrice;
-                entryPNLPercent = (priceDiff / entry.entryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-                entryPNL = entry.size * (priceDiff / entry.entryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-              }
-            }
-
-            return (
-              <div key={idx} className="card-bg">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-700 ${
-                      entry.type === 'initial' ? 'bg-neutral/30 text-neutral' :
-                      entry.type === 'add' ? 'bg-profit/20 text-profit' :
-                      'bg-loss/20 text-loss'
-                    }`}>
-                      {entry.type === 'initial' ? '●' : entry.type === 'add' ? '+' : '−'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-label capitalize">{entry.type === 'initial' ? 'Initial Entry' : entry.type === 'add' ? 'Add Position' : 'Reduce Position'}</p>
-                        {entry.type === 'initial' && (
-                          <span className={`text-xs font-700 px-2 py-1 rounded ${
-                            position.sideEntry === 'long'
-                              ? 'bg-profit/20 text-profit'
-                              : 'bg-loss/20 text-loss'
-                          }`}>
-                            {position.sideEntry.toUpperCase()}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">{new Date(entry.timestamp).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {editingEntry?.index !== idx && (
-                      <button
-                        onClick={() => handleStartEdit(idx)}
-                        className="text-gray-400 hover:text-neutral transition-colors"
-                        title="Edit this entry"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                    )}
-                    {idx > 0 && (
-                      <button
-                        onClick={() => handleRemoveEntry(idx)}
-                        className="text-gray-400 hover:text-loss transition-colors"
-                        title="Remove this entry"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">
-                        {entry.type === 'subtract' ? 'Close Price' : entry.type === 'add' ? 'Avg Entry (after add)' : 'Entry Price'}
-                      </p>
-                      <p className="text-lg sm:text-xl font-600 text-metric">
-                        ${formatNumber(entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)}
-                      </p>
-                      {entry.type === 'add' && (
-                        <p className="text-xs text-gray-400 mt-1">Entry: ${formatNumber(entry.entryPrice)}</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Size (USD)</p>
-                      <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(entry.size)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Total Position</p>
-                      <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(runningTotalSize)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">Leverage</p>
-                      <p className="text-lg sm:text-xl font-600 text-metric">{formatNumber(entry.leverage, 1)}x</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2">{entry.type === 'subtract' ? 'Realized PNL %' : 'Current PNL %'}</p>
-                      <p className={`text-lg sm:text-xl font-600 ${entryPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
-                        {entryPNLPercent >= 0 ? '+' : ''}{formatNumber(entryPNLPercent, 2)}%
-                      </p>
-                    </div>
-                  </div>
-
-                {/* Stop Loss Info */}
-                {position.stopLoss && entry.type !== 'subtract' && (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-2">Stop Loss Level</p>
-                        <p className="text-lg font-600 text-loss">${formatNumber(position.stopLoss)}</p>
-                      </div>
-                      {(() => {
-                        const slPriceDiff = position.stopLoss - (entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice);
-                        const slPNLPercent = (slPriceDiff / (entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-                        const slPNLUSD = entry.size * (slPriceDiff / (entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-
-                        return (
-                          <div>
-                            <p className="text-xs text-gray-500 mb-2">PNL if SL Hit</p>
-                            <div className="space-y-1">
-                              <p className="text-lg font-600 text-loss">
-                                {slPNLUSD >= 0 ? '+' : ''}${formatNumber(slPNLUSD, 2)}
-                              </p>
-                              <p className="text-xs text-gray-400">
-                                {slPNLPercent >= 0 ? '+' : ''}{formatNumber(slPNLPercent, 2)}%
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                )}
-
-                {/* PNL Details */}
-                {entry.type === 'subtract' ? (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50">
-                    {/* For reduce entries, show realized PNL and current PNL of remaining side by side */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-2">Realized PNL (USD)</p>
-                        <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
-                        </p>
-                      </div>
-
-                      {/* For reduce entries, also show current PNL of remaining position */}
-                      {runningTotalSize > 0 && livePrice?.price && (
-                        <div>
-                          {(() => {
-                            // Calculate current PNL of the remaining position
-                            let remainingAvgEntry = 0;
-                            let remainingSize = 0;
-                            let remainingLeverage = 1;
-
-                            // Calculate remaining position metrics at this point
-                            let openSize = 0;
-                            let openLeveragedCapital = 0;
-                            let openWeightedEntryPrice = 0;
-                            let closedSize = 0;
-
-                            for (let i = 0; i <= idx; i++) {
-                              if (position.entries[i].type === 'subtract') {
-                                closedSize += position.entries[i].size;
-                              } else {
-                                openSize += position.entries[i].size;
-                                openLeveragedCapital += position.entries[i].size * position.entries[i].leverage;
-                                openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
-                              }
-                            }
-
-                            remainingSize = Math.max(openSize - closedSize, 0);
-                            if (openSize > 0 && remainingSize > 0) {
-                              const scaleFactor = remainingSize / openSize;
-                              remainingAvgEntry = (openWeightedEntryPrice * scaleFactor) / remainingSize;
-                              remainingLeverage = (openLeveragedCapital * scaleFactor) / remainingSize;
-                            }
-
-                            const remainingPriceDiff = livePrice.price - remainingAvgEntry;
-                            const remainingPNLPercent = (remainingPriceDiff / remainingAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
-                            const remainingPNLUSD = remainingSize * (remainingPriceDiff / remainingAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
-
-                            return (
-                              <div>
-                                <p className="text-xs text-gray-500 mb-2">Current PNL of Remaining (USD)</p>
-                                <div className="space-y-1">
-                                  <p className={`text-lg font-600 ${remainingPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                    {remainingPNLUSD >= 0 ? '+' : ''}${formatNumber(remainingPNLUSD, 2)}
-                                  </p>
-                                  <p className={`text-xs ${remainingPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                    {remainingPNLPercent >= 0 ? '+' : ''}{formatNumber(remainingPNLPercent, 2)}%
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50">
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-2">Current PNL (USD)</p>
-                        <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
-                          {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
-                        </p>
-                      </div>
-
-                      {/* Show potential profit at take profit level */}
-                      {position.takeProfit && position.takeProfit !== 0 && (
-                        <div>
-                          {(() => {
-                            const tpPriceDiff = position.takeProfit - cumulativeWeightedEntryPrice;
-                            const tpPNLPercent = (tpPriceDiff / cumulativeWeightedEntryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-                            const tpPNLUSD = entry.size * (tpPriceDiff / cumulativeWeightedEntryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
-
-                            return (
-                              <div>
-                                <p className="text-xs text-gray-500 mb-2">Potential Profit at TP (${formatNumber(position.takeProfit)})</p>
-                                <div className="space-y-1">
-                                  <p className={`text-lg font-600 ${tpPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                    {tpPNLUSD >= 0 ? '+' : ''}${formatNumber(tpPNLUSD, 2)}
-                                  </p>
-                                  <p className={`text-xs ${tpPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
-                                    {tpPNLPercent >= 0 ? '+' : ''}{formatNumber(tpPNLPercent, 2)}%
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+      {/* Sticky PNL Bar */}
+      {livePrice?.price && (
+        <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-8 bg-[#0A0E27]/95 backdrop-blur-md border-b border-slate-700/50">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-600 px-2 py-1 rounded bg-neutral/20 text-neutral">
+                {position.symbol}
+              </span>
+              <span className={`text-xs font-700 px-2 py-1 rounded ${
+                position.sideEntry === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss'
+              }`}>
+                {position.sideEntry.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Size</p>
+                <p className="font-600 text-metric">${formatNumber(totals.totalSize)}</p>
               </div>
-            );
-          })}
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Price</p>
+                <p className="font-600 text-metric">${formatNumber(livePrice.price, 2)}</p>
+              </div>
+              {originalMetrics.pnlPercentage !== undefined && (
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">PNL</p>
+                  <p className={`font-700 ${originalMetrics.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'}`}>
+                    {originalMetrics.pnlPercentage >= 0 ? '+' : ''}{formatNumber(originalMetrics.pnlPercentage, 2)}%
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Current Position Metrics */}
-      <div className="mb-20 sm:mb-24 pb-12 sm:pb-16 border-t border-slate-700/50">
+      {/* Current Market Price + Position Summary */}
+      <div className="mb-20 sm:mb-24 pb-12 sm:pb-16">
         {/* Live Market Price Card */}
         {livePrice?.price && (
           <div className="mb-12 sm:mb-16 card-bg">
@@ -842,6 +621,24 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                 <p className="text-4xl sm:text-5xl font-700 text-metric">
                   ${formatNumber(originalMetrics.liquidationPrice || 0)}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* Total Realized PNL */}
+          {totals.reduceCount > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 sm:gap-16">
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <p className="text-label">Total Realized PNL</p>
+                  <span className="tooltip-trigger" data-tooltip={`Total profit/loss from ${totals.reduceCount} closed position${totals.reduceCount > 1 ? 's' : ''}`}>
+                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                  </span>
+                </div>
+                <p className={`text-4xl sm:text-5xl font-700 ${totals.totalRealizedPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                  {totals.totalRealizedPNL >= 0 ? '+' : ''}${formatNumber(totals.totalRealizedPNL)}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">From {totals.reduceCount} reduction{totals.reduceCount > 1 ? 's' : ''}</p>
               </div>
             </div>
           )}
@@ -1017,34 +814,31 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
           <h3 className="text-label mb-12 sm:mb-16">Projected Position After Adjustment</h3>
 
           <div className="space-y-8 sm:space-y-12">
-            {/* Projected Totals */}
+            {/* Projected Totals - Before → After format */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-12 sm:gap-16">
               <div>
-                <p className="text-label mb-4">New Total Size</p>
-                <div className="flex items-baseline gap-3">
+                <p className="text-label mb-4">Total Size</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl text-gray-500 font-500">${formatNumber(totals.totalSize)}</p>
+                  <span className="text-gray-500">→</span>
                   <p className="text-3xl sm:text-4xl font-700 text-metric">${formatNumber(projected.totalSize)}</p>
-                  <p className="text-xs text-gray-500">← {adjustmentType === 'add' ? 'increased' : 'decreased'}</p>
                 </div>
               </div>
               <div className="border-2 border-neutral/50 rounded-lg p-6">
-                <p className="text-label mb-4">New Avg Entry</p>
-                <p className="text-3xl sm:text-4xl font-700 text-metric mb-3">${formatNumber(projected.averageEntryPrice)}</p>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>Was: ${formatNumber(totals.averageEntryPrice)}</p>
-                  <p className={`font-600 ${
-                    adjustmentType === 'add' && position.sideEntry === 'short'
-                      ? 'text-profit' // SHORT benefits from lower entry
-                      : adjustmentType === 'add' && position.sideEntry === 'long'
-                      ? 'text-loss' // LONG benefits from higher entry
-                      : 'text-gray-500'
-                  }`}>
-                    {adjustmentType === 'add' ? '↓ Better for ' + position.sideEntry.toUpperCase() : '↑ Change'}
-                  </p>
+                <p className="text-label mb-4">Avg Entry</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl text-gray-500 font-500">${formatNumber(totals.averageEntryPrice)}</p>
+                  <span className="text-gray-500">→</span>
+                  <p className="text-3xl sm:text-4xl font-700 text-metric">${formatNumber(projected.averageEntryPrice)}</p>
                 </div>
               </div>
               <div>
-                <p className="text-label mb-4">New Avg Leverage</p>
-                <p className="text-3xl sm:text-4xl font-700 text-metric">{formatNumber(projected.avgLeverage, 1)}x</p>
+                <p className="text-label mb-4">Avg Leverage</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl text-gray-500 font-500">{formatNumber(totals.averageLeverage, 1)}x</p>
+                  <span className="text-gray-500">→</span>
+                  <p className="text-3xl sm:text-4xl font-700 text-metric">{formatNumber(projected.avgLeverage, 1)}x</p>
+                </div>
               </div>
             </div>
 
@@ -1052,23 +846,35 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-12 sm:gap-16">
               <div>
                 <p className="text-label mb-4">Max Loss (if SL hit)</p>
-                <p className="text-3xl sm:text-4xl font-700 text-loss">${formatNumber(Math.abs(projected.riskAmount))}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl text-gray-500 font-500">${formatNumber(Math.abs(originalMetrics.riskAmount))}</p>
+                  <span className="text-gray-500">→</span>
+                  <p className="text-3xl sm:text-4xl font-700 text-loss">${formatNumber(Math.abs(projected.riskAmount))}</p>
+                </div>
               </div>
               <div>
                 <p className="text-label mb-4">Max Profit (if TP hit)</p>
-                <p className="text-3xl sm:text-4xl font-700 text-profit">${formatNumber(projected.rewardAmount)}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl text-gray-500 font-500">${formatNumber(originalMetrics.rewardAmount)}</p>
+                  <span className="text-gray-500">→</span>
+                  <p className="text-3xl sm:text-4xl font-700 text-profit">${formatNumber(projected.rewardAmount)}</p>
+                </div>
               </div>
             </div>
 
             {/* New RR Ratio */}
             <div className="metric-card border-2 border-neutral/50">
               <div className="flex items-center gap-2 mb-4">
-                <p className="text-label">New Risk/Reward Ratio</p>
+                <p className="text-label">Risk/Reward Ratio</p>
                 <span className="tooltip-trigger" data-tooltip="Updated ratio after this adjustment">
                   <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
                 </span>
               </div>
-              <p className="text-5xl sm:text-6xl font-700 text-neutral">1:{formatNumber(projected.riskRewardRatio, 2)}</p>
+              <div className="flex items-baseline gap-3">
+                <p className="text-2xl text-gray-500 font-500">1:{formatNumber(originalMetrics.riskRewardRatio, 2)}</p>
+                <span className="text-gray-500">→</span>
+                <p className="text-5xl sm:text-6xl font-700 text-neutral">1:{formatNumber(projected.riskRewardRatio, 2)}</p>
+              </div>
             </div>
 
             {/* Projected PNL */}
@@ -1098,7 +904,15 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                     <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
                   </span>
                 </div>
-                <p className="text-3xl sm:text-4xl font-600 text-metric">${formatNumber(projected.liquidationPrice)}</p>
+                <div className="flex items-baseline gap-2">
+                  {originalMetrics.liquidationPrice && (
+                    <>
+                      <p className="text-xl text-gray-500 font-500">${formatNumber(originalMetrics.liquidationPrice)}</p>
+                      <span className="text-gray-500">→</span>
+                    </>
+                  )}
+                  <p className="text-3xl sm:text-4xl font-600 text-metric">${formatNumber(projected.liquidationPrice)}</p>
+                </div>
               </div>
             )}
           </div>
@@ -1109,7 +923,7 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
       {proposedAdjustment && (
         <button
           onClick={handleApplyAdjustment}
-          className={`btn-primary w-full py-4 font-600 transition-all ${
+          className={`btn-primary w-full py-4 font-600 transition-all mb-20 sm:mb-24 ${
             adjustmentType === 'add'
               ? 'bg-profit/20 border border-profit text-profit hover:bg-profit/30'
               : 'bg-loss/20 border border-loss text-loss hover:bg-loss/30'
@@ -1118,6 +932,403 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
           {adjustmentType === 'add' ? '✓ Add to Position' : '✓ Reduce Position'}
         </button>
       )}
+
+      {/* Entry Chain History */}
+      <div className="mb-20 sm:mb-24 border-t border-slate-700/50 pt-12 sm:pt-16">
+        <div className="flex items-center justify-between mb-12 sm:mb-16">
+          <div className="flex items-center gap-3">
+            <h3 className="text-label">Position Chain History</h3>
+            <span className="text-sm font-600 px-3 py-1 rounded bg-neutral/20 text-neutral">
+              {position.entries.length} {position.entries.length === 1 ? 'entry' : 'entries'}
+            </span>
+          </div>
+        </div>
+
+        {/* Show more toggle */}
+        {hiddenCount > 0 && (
+          <button
+            onClick={() => setShowAllEntries(true)}
+            className="w-full mb-4 py-3 px-4 rounded-lg text-sm font-600 text-gray-400 hover:text-neutral bg-gray-700/20 hover:bg-gray-700/30 border border-gray-700/50 transition-all flex items-center justify-center gap-2"
+          >
+            <ChevronDown size={16} />
+            Show {hiddenCount} earlier {hiddenCount === 1 ? 'entry' : 'entries'}
+          </button>
+        )}
+
+        {showAllEntries && position.entries.length > 2 && (
+          <button
+            onClick={() => setShowAllEntries(false)}
+            className="w-full mb-4 py-3 px-4 rounded-lg text-sm font-600 text-gray-400 hover:text-neutral bg-gray-700/20 hover:bg-gray-700/30 border border-gray-700/50 transition-all flex items-center justify-center gap-2"
+          >
+            Show less
+          </button>
+        )}
+
+        <div className="space-y-4">
+          {entriesToShow.map((entry, localIdx) => {
+            const idx = entryStartIndex + localIdx;
+            // Calculate running total position size up to this entry
+            let runningTotalSize = 0;
+            for (let i = 0; i <= idx; i++) {
+              if (position.entries[i].type === 'subtract') {
+                runningTotalSize -= position.entries[i].size;
+              } else {
+                runningTotalSize += position.entries[i].size;
+              }
+            }
+            runningTotalSize = Math.max(runningTotalSize, 0);
+
+            // Calculate cumulative weighted average entry price using FIFO logic
+            let cumulativeWeightedEntryPrice = entry.entryPrice;
+            if (entry.type !== 'subtract') {
+              // For open entries, calculate the cumulative weighted average up to this point
+              let openSize = 0;
+              let openWeightedEntryPrice = 0;
+              let closedSize = 0;
+
+              for (let i = 0; i <= idx; i++) {
+                if (position.entries[i].type === 'subtract') {
+                  closedSize += position.entries[i].size;
+                } else {
+                  openSize += position.entries[i].size;
+                  openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                }
+              }
+
+              // FIFO: apply closed amounts to oldest entries
+              let closedRemaining = closedSize;
+              let remainingWeightedEntryPrice = 0;
+
+              for (let i = 0; i <= idx; i++) {
+                if (position.entries[i].type !== 'subtract') {
+                  if (closedRemaining <= 0) {
+                    remainingWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                  } else if (closedRemaining < position.entries[i].size) {
+                    const remainingFromEntry = position.entries[i].size - closedRemaining;
+                    remainingWeightedEntryPrice += remainingFromEntry * position.entries[i].entryPrice;
+                    closedRemaining = 0;
+                  } else {
+                    closedRemaining -= position.entries[i].size;
+                  }
+                }
+              }
+
+              if (runningTotalSize > 0) {
+                cumulativeWeightedEntryPrice = remainingWeightedEntryPrice / runningTotalSize;
+              }
+            }
+
+            // Calculate PNL for this specific entry
+            let entryPNL = 0;
+            let entryPNLPercent = 0;
+            let entryClosePrice = entry.entryPrice;
+
+            if (entry.type === 'subtract') {
+              // For reduce entries: calculate PNL from previous average entry to close price
+              let prevTotalSize = 0;
+              let prevWeightedEntryPrice = 0;
+              for (let i = 0; i < idx; i++) {
+                prevTotalSize += position.entries[i].type === 'subtract' ? -position.entries[i].size : position.entries[i].size;
+                prevWeightedEntryPrice += (position.entries[i].type === 'subtract' ? -position.entries[i].size : position.entries[i].size) * position.entries[i].entryPrice;
+              }
+              const prevAvgEntry = prevTotalSize !== 0 ? prevWeightedEntryPrice / prevTotalSize : entry.entryPrice;
+              const priceDiff = entry.entryPrice - prevAvgEntry;
+              entryPNLPercent = (priceDiff / prevAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+              entryPNL = entry.size * (priceDiff / prevAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+              entryClosePrice = entry.entryPrice;
+            } else {
+              // For initial/add entries: calculate PNL from entry to current price
+              if (livePrice?.price) {
+                const priceDiff = livePrice.price - entry.entryPrice;
+                entryPNLPercent = (priceDiff / entry.entryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+                entryPNL = entry.size * (priceDiff / entry.entryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+              }
+            }
+
+            return (
+              <div key={idx} className="card-bg">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-700 ${
+                      entry.type === 'initial' ? 'bg-neutral/30 text-neutral' :
+                      entry.type === 'add' ? 'bg-profit/20 text-profit' :
+                      'bg-loss/20 text-loss'
+                    }`}>
+                      {entry.type === 'initial' ? '●' : entry.type === 'add' ? '+' : '−'}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-label capitalize">{entry.type === 'initial' ? 'Initial Entry' : entry.type === 'add' ? 'Add Position' : 'Reduce Position'}</p>
+                        {entry.type === 'initial' && (
+                          <span className={`text-xs font-700 px-2 py-1 rounded ${
+                            position.sideEntry === 'long'
+                              ? 'bg-profit/20 text-profit'
+                              : 'bg-loss/20 text-loss'
+                          }`}>
+                            {position.sideEntry.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{new Date(entry.timestamp).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {editingEntry?.index !== idx && (
+                      <button
+                        onClick={() => handleStartEdit(idx)}
+                        className="text-gray-400 hover:text-neutral transition-colors"
+                        title="Edit this entry"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    )}
+                    {idx === 0 && onReset ? (
+                      <button
+                        onClick={onReset}
+                        className="text-gray-400 hover:text-neutral transition-colors"
+                        title="Reset position"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    ) : idx > 0 ? (
+                      <button
+                        onClick={() => handleRemoveEntry(idx)}
+                        className="text-gray-400 hover:text-loss transition-colors"
+                        title="Remove this entry"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {entry.type === 'subtract' ? 'Close Price' : entry.type === 'add' ? 'Avg Entry (after add)' : 'Entry Price'}
+                      </p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">
+                        ${formatNumber(entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice)}
+                      </p>
+                      {entry.type === 'add' && (
+                        <p className="text-xs text-gray-400 mt-1">Entry: ${formatNumber(entry.entryPrice)}</p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Size (USD)</p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(entry.size)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Total Position</p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">${formatNumber(runningTotalSize)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Leverage</p>
+                      <p className="text-lg sm:text-xl font-600 text-metric">{formatNumber(entry.leverage, 1)}x</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">{entry.type === 'subtract' ? 'Realized PNL %' : 'Current PNL %'}</p>
+                      <p className={`text-lg sm:text-xl font-600 ${entryPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                        {entryPNLPercent >= 0 ? '+' : ''}{formatNumber(entryPNLPercent, 2)}%
+                      </p>
+                    </div>
+                  </div>
+
+                {/* Stop Loss Info */}
+                {(() => {
+                  const entrySL = entry.stopLoss ?? position.stopLoss;
+                  if (!entrySL || entry.type === 'subtract') return null;
+
+                  const refPrice = entry.type === 'add' ? cumulativeWeightedEntryPrice : entry.entryPrice;
+                  const slPriceDiff = entrySL - refPrice;
+                  const slPNLPercent = (slPriceDiff / refPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+                  const slPNLUSD = entry.size * (slPriceDiff / refPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+
+                  return (
+                    <div className="mt-4 pt-4 border-t border-gray-700/50">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2">Stop Loss Level</p>
+                          <p className="text-lg font-600 text-loss">${formatNumber(entrySL)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2">PNL if SL Hit</p>
+                          <div className="space-y-1">
+                            <p className={`text-lg font-600 ${slPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                              {slPNLUSD >= 0 ? '+' : ''}${formatNumber(slPNLUSD, 2)}
+                            </p>
+                            <p className={`text-xs ${slPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                              {slPNLPercent >= 0 ? '+' : ''}{formatNumber(slPNLPercent, 2)}%
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* PNL Details */}
+                {entry.type === 'subtract' ? (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    {/* For reduce entries, show realized PNL and current PNL of remaining side by side */}
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Realized PNL (USD)</p>
+                        <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                          {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
+                        </p>
+                      </div>
+
+                      {/* For reduce entries, also show current PNL of remaining position */}
+                      {runningTotalSize > 0 && livePrice?.price && (
+                        <div>
+                          {(() => {
+                            // Calculate current PNL of the remaining position
+                            let remainingAvgEntry = 0;
+                            let remainingSize = 0;
+                            let remainingLeverage = 1;
+
+                            // Calculate remaining position metrics at this point
+                            let openSize = 0;
+                            let openLeveragedCapital = 0;
+                            let openWeightedEntryPrice = 0;
+                            let closedSize = 0;
+
+                            for (let i = 0; i <= idx; i++) {
+                              if (position.entries[i].type === 'subtract') {
+                                closedSize += position.entries[i].size;
+                              } else {
+                                openSize += position.entries[i].size;
+                                openLeveragedCapital += position.entries[i].size * position.entries[i].leverage;
+                                openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                              }
+                            }
+
+                            remainingSize = Math.max(openSize - closedSize, 0);
+                            if (openSize > 0 && remainingSize > 0) {
+                              const scaleFactor = remainingSize / openSize;
+                              remainingAvgEntry = (openWeightedEntryPrice * scaleFactor) / remainingSize;
+                              remainingLeverage = (openLeveragedCapital * scaleFactor) / remainingSize;
+                            }
+
+                            const remainingPriceDiff = livePrice.price - remainingAvgEntry;
+                            const remainingPNLPercent = (remainingPriceDiff / remainingAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
+                            const remainingPNLUSD = remainingSize * (remainingPriceDiff / remainingAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
+
+                            return (
+                              <div>
+                                <p className="text-xs text-gray-500 mb-2">Current PNL of Remaining (USD)</p>
+                                <div className="space-y-1">
+                                  <p className={`text-lg font-600 ${remainingPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                    {remainingPNLUSD >= 0 ? '+' : ''}${formatNumber(remainingPNLUSD, 2)}
+                                  </p>
+                                  <p className={`text-xs ${remainingPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                    {remainingPNLPercent >= 0 ? '+' : ''}{formatNumber(remainingPNLPercent, 2)}%
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Potential Profit at TP for remaining position after reduce */}
+                    {(() => {
+                      const reduceTP = entry.takeProfit ?? position.takeProfit;
+                      if (!reduceTP || reduceTP === 0 || runningTotalSize <= 0) return null;
+
+                      // Calculate remaining position metrics at this point
+                      let openSize = 0;
+                      let openLeveragedCapital = 0;
+                      let openWeightedEntryPrice = 0;
+                      let closedSize = 0;
+
+                      for (let i = 0; i <= idx; i++) {
+                        if (position.entries[i].type === 'subtract') {
+                          closedSize += position.entries[i].size;
+                        } else {
+                          openSize += position.entries[i].size;
+                          openLeveragedCapital += position.entries[i].size * position.entries[i].leverage;
+                          openWeightedEntryPrice += position.entries[i].size * position.entries[i].entryPrice;
+                        }
+                      }
+
+                      const remainingSize = Math.max(openSize - closedSize, 0);
+                      if (remainingSize <= 0 || openSize <= 0) return null;
+
+                      const scaleFactor = remainingSize / openSize;
+                      const remainingAvgEntry = (openWeightedEntryPrice * scaleFactor) / remainingSize;
+                      const remainingLeverage = (openLeveragedCapital * scaleFactor) / remainingSize;
+
+                      const tpPriceDiff = reduceTP - remainingAvgEntry;
+                      const tpPNLPercent = (tpPriceDiff / remainingAvgEntry) * 100 * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
+                      const tpPNLUSD = remainingSize * (tpPriceDiff / remainingAvgEntry) * (position.sideEntry === 'long' ? 1 : -1) * remainingLeverage;
+
+                      return (
+                        <div className="mt-4 pt-4 border-t border-gray-700/50">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div>
+                              <p className="text-xs text-gray-500 mb-2">Take Profit Level</p>
+                              <p className="text-lg font-600 text-profit">${formatNumber(reduceTP)}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-2">Potential Profit at TP (Remaining)</p>
+                              <div className="space-y-1">
+                                <p className={`text-lg font-600 ${tpPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                  {tpPNLUSD >= 0 ? '+' : ''}${formatNumber(tpPNLUSD, 2)}
+                                </p>
+                                <p className={`text-xs ${tpPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                  {tpPNLPercent >= 0 ? '+' : ''}{formatNumber(tpPNLPercent, 2)}%
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-2">Current PNL (USD)</p>
+                        <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
+                          {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
+                        </p>
+                      </div>
+
+                      {/* Show potential profit at take profit level */}
+                      {(() => {
+                        const entryTP = entry.takeProfit ?? position.takeProfit;
+                        if (!entryTP || entryTP === 0) return null;
+
+                        const tpPriceDiff = entryTP - cumulativeWeightedEntryPrice;
+                        const tpPNLPercent = (tpPriceDiff / cumulativeWeightedEntryPrice) * 100 * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+                        const tpPNLUSD = entry.size * (tpPriceDiff / cumulativeWeightedEntryPrice) * (position.sideEntry === 'long' ? 1 : -1) * entry.leverage;
+
+                        return (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-2">Potential Profit at TP (${formatNumber(entryTP)})</p>
+                            <div className="space-y-1">
+                              <p className={`text-lg font-600 ${tpPNLUSD >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                {tpPNLUSD >= 0 ? '+' : ''}${formatNumber(tpPNLUSD, 2)}
+                              </p>
+                              <p className={`text-xs ${tpPNLPercent >= 0 ? 'text-profit' : 'text-loss'}`}>
+                                {tpPNLPercent >= 0 ? '+' : ''}{formatNumber(tpPNLPercent, 2)}%
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Edit Entry Modal */}
       {editingEntry && (
@@ -1164,6 +1375,50 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
                   onChange={(e) => setEditingEntry({ ...editingEntry, leverage: e.target.value })}
                   className="input-field w-full text-lg font-600 text-metric"
                 />
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block font-600">
+                  Stop Loss {position.sideEntry === 'long' ? '(below entry)' : '(above entry)'}
+                </label>
+                <input
+                  type="number"
+                  step="0.00000001"
+                  value={editingEntry.stopLoss}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, stopLoss: e.target.value })}
+                  placeholder="Optional"
+                  className="input-field w-full text-lg font-600 text-metric"
+                />
+                {editingEntry.stopLoss && (() => {
+                  const sl = parseFloat(editingEntry.stopLoss);
+                  const ep = parseFloat(editingEntry.entryPrice);
+                  if (!sl || !ep) return null;
+                  const invalid = (position.sideEntry === 'long' && sl >= ep) || (position.sideEntry === 'short' && sl <= ep);
+                  if (!invalid) return null;
+                  return <p className="text-xs text-loss mt-1">SL must be {position.sideEntry === 'long' ? 'below' : 'above'} entry for {position.sideEntry.toUpperCase()}</p>;
+                })()}
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block font-600">
+                  Take Profit {position.sideEntry === 'long' ? '(above entry)' : '(below entry)'}
+                </label>
+                <input
+                  type="number"
+                  step="0.00000001"
+                  value={editingEntry.takeProfit}
+                  onChange={(e) => setEditingEntry({ ...editingEntry, takeProfit: e.target.value })}
+                  placeholder="Optional"
+                  className="input-field w-full text-lg font-600 text-metric"
+                />
+                {editingEntry.takeProfit && (() => {
+                  const tp = parseFloat(editingEntry.takeProfit);
+                  const ep = parseFloat(editingEntry.entryPrice);
+                  if (!tp || !ep) return null;
+                  const invalid = (position.sideEntry === 'long' && tp <= ep) || (position.sideEntry === 'short' && tp >= ep);
+                  if (!invalid) return null;
+                  return <p className="text-xs text-loss mt-1">TP must be {position.sideEntry === 'long' ? 'above' : 'below'} entry for {position.sideEntry.toUpperCase()}</p>;
+                })()}
               </div>
             </div>
 

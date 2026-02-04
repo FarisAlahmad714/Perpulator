@@ -12,7 +12,8 @@ export const validatePositionInput = (
   positionSize: string,
   leverage: string,
   stopLoss?: string,
-  takeProfit?: string
+  takeProfit?: string,
+  direction?: 'long' | 'short'
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
 
@@ -53,6 +54,12 @@ export const validatePositionInput = (
       errors.push({ field: 'stopLoss', message: 'Stop loss must be a valid number' });
     } else if (sl <= 0) {
       errors.push({ field: 'stopLoss', message: 'Stop loss must be positive' });
+    } else if (direction && !isNaN(entry) && entry > 0) {
+      if (direction === 'long' && sl >= entry) {
+        errors.push({ field: 'stopLoss', message: 'Stop loss must be below entry price for a LONG position' });
+      } else if (direction === 'short' && sl <= entry) {
+        errors.push({ field: 'stopLoss', message: 'Stop loss must be above entry price for a SHORT position' });
+      }
     }
   }
 
@@ -63,6 +70,12 @@ export const validatePositionInput = (
       errors.push({ field: 'takeProfit', message: 'Take profit must be a valid number' });
     } else if (tp <= 0) {
       errors.push({ field: 'takeProfit', message: 'Take profit must be positive' });
+    } else if (direction && !isNaN(entry) && entry > 0) {
+      if (direction === 'long' && tp <= entry) {
+        errors.push({ field: 'takeProfit', message: 'Take profit must be above entry price for a LONG position' });
+      } else if (direction === 'short' && tp >= entry) {
+        errors.push({ field: 'takeProfit', message: 'Take profit must be below entry price for a SHORT position' });
+      }
     }
   }
 

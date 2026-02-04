@@ -50,7 +50,8 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
       positionSizeUSD,
       leverage,
       stopLoss,
-      takeProfit
+      takeProfit,
+      direction
     );
 
     if (errors.length > 0) {
@@ -73,6 +74,8 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
           leverage: parseFloat(leverage),
           timestamp: new Date(),
           type: 'initial',
+          takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
+          stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
         }
       ],
       stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,

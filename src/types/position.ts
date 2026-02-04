@@ -4,6 +4,8 @@ export interface PositionEntry {
   leverage: number;
   timestamp: Date;
   type: 'initial' | 'add' | 'subtract'; // Track type of entry
+  takeProfit?: number; // Snapshot of TP at time of this entry
+  stopLoss?: number; // Snapshot of SL at time of this entry
 }
 
 export interface Position {
