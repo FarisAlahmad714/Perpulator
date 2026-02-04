@@ -752,18 +752,18 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Total Position Size</p>
-                <div title="Combined USD value of all entries in your position chain">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="Combined USD value of all entries in your position chain">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-4xl sm:text-5xl font-700 text-metric">${formatNumber(totals.totalSize)}</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Average Entry Price</p>
-                <div title="Weighted average price across all entries in your position chain">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="Weighted average price across all entries in your position chain">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-4xl sm:text-5xl font-700 text-metric">${formatNumber(totals.averageEntryPrice)}</p>
             </div>
@@ -774,18 +774,18 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Average Leverage</p>
-                <div title="Weighted average leverage across all entries in your position chain">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="Weighted average leverage across all entries in your position chain">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-4xl sm:text-5xl font-700 text-metric">{formatNumber(totals.averageLeverage, 1)}x</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Risk/Reward Ratio</p>
-                <div title="For every $1 you risk, you can make $X. Higher is better (2:1 is favorable)">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="For every $1 you risk, you can make $X. Higher is better (2:1 is favorable)">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-4xl sm:text-5xl font-700 text-neutral">1:{formatNumber(originalMetrics.riskRewardRatio, 2)}</p>
             </div>
@@ -796,18 +796,18 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Max Risk Amount</p>
-                <div title="Maximum USD amount you can lose if stop loss is hit">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="Maximum USD amount you can lose if stop loss is hit">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-4xl sm:text-5xl font-700 text-loss">${formatNumber(Math.abs(originalMetrics.riskAmount))}</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">Max Reward Potential</p>
-                <div title="Maximum USD profit if take profit target is reached">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="Maximum USD profit if take profit target is reached">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-4xl sm:text-5xl font-700 text-profit">${formatNumber(originalMetrics.rewardAmount)}</p>
             </div>
@@ -819,9 +819,9 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <p className="text-label">Current PNL %</p>
-                  <div title="Your current unrealized profit/loss percentage. Includes leverage effect on margin">
-                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                  </div>
+                  <span className="tooltip-trigger" data-tooltip="Your current unrealized profit/loss percentage. Includes leverage effect on margin">
+                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                  </span>
                 </div>
                 <p className={`text-4xl sm:text-5xl font-700 ${originalMetrics.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'}`}>
                   {originalMetrics.pnlPercentage >= 0 ? '+' : ''}{formatNumber(originalMetrics.pnlPercentage, 2)}%
@@ -835,9 +835,9 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <p className="text-label">Liquidation Price</p>
-                  <div title="Price at which your position will be forcefully closed and margin liquidated">
-                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                  </div>
+                  <span className="tooltip-trigger" data-tooltip="Price at which your position will be forcefully closed and margin liquidated">
+                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                  </span>
                 </div>
                 <p className="text-4xl sm:text-5xl font-700 text-metric">
                   ${formatNumber(originalMetrics.liquidationPrice || 0)}
@@ -993,19 +993,20 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
               )}
             </div>
 
-            {adjustmentType === 'add' && (
-              <div>
-                <label className="text-label mb-2 block">Take Profit Target (Optional)</label>
-                <input
-                  type="number"
-                  step="0.00000001"
-                  value={takeProfitPrice}
-                  onChange={(e) => setTakeProfitPrice(e.target.value)}
-                  placeholder="Enter take profit target"
-                  className="input-field w-full text-2xl font-500 text-metric"
-                />
-              </div>
-            )}
+            <div>
+              <label className="text-label mb-2 block">Take Profit Target (Optional)</label>
+              <input
+                type="number"
+                step="0.00000001"
+                value={takeProfitPrice}
+                onChange={(e) => setTakeProfitPrice(e.target.value)}
+                placeholder={position.takeProfit ? `Current: $${formatNumber(position.takeProfit)}` : 'Enter take profit target'}
+                className="input-field w-full text-2xl font-500 text-metric"
+              />
+              {!takeProfitPrice && position.takeProfit && (
+                <p className="text-xs text-gray-500 mt-2">Current: ${formatNumber(position.takeProfit)}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1063,9 +1064,9 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
             <div className="metric-card border-2 border-neutral/50">
               <div className="flex items-center gap-2 mb-4">
                 <p className="text-label">New Risk/Reward Ratio</p>
-                <div title="Updated ratio after this adjustment">
-                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                </div>
+                <span className="tooltip-trigger" data-tooltip="Updated ratio after this adjustment">
+                  <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                </span>
               </div>
               <p className="text-5xl sm:text-6xl font-700 text-neutral">1:{formatNumber(projected.riskRewardRatio, 2)}</p>
             </div>
@@ -1093,9 +1094,9 @@ export default function PositionAdjustment({ position, onPositionUpdate }: Posit
               <div className="card-bg">
                 <div className="flex items-center gap-2 mb-4">
                   <p className="text-label">Projected Liquidation Price</p>
-                  <div title="Price at which position will be liquidated after this adjustment">
-                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors cursor-help" />
-                  </div>
+                  <span className="tooltip-trigger" data-tooltip="Price at which position will be liquidated after this adjustment">
+                    <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                  </span>
                 </div>
                 <p className="text-3xl sm:text-4xl font-600 text-metric">${formatNumber(projected.liquidationPrice)}</p>
               </div>

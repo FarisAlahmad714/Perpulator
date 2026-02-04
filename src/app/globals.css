@@ -315,3 +315,58 @@ input[type='range']::-moz-range-progress {
   background: #00D9FF;
   height: 2px;
 }
+
+/* ===== TOOLTIPS ===== */
+.tooltip-trigger {
+  position: relative;
+  display: inline-flex;
+  cursor: help;
+}
+
+.tooltip-trigger::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1E293B;
+  color: #CBD5E1;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+  line-height: 1.5;
+  text-transform: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  white-space: normal;
+  width: max-content;
+  max-width: 260px;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tooltip-trigger::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1E293B;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 51;
+}
+
+.tooltip-trigger:hover::after,
+.tooltip-trigger:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
