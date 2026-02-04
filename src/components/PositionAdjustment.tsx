@@ -11,7 +11,7 @@ import {
 } from '@/utils/calculations';
 import { usePrice } from '@/contexts/PriceContext';
 import { trackPositionAdjusted } from '@/lib/analytics';
-import { Plus, Minus, Info, Trash2, Edit2, Check, X, RotateCcw, ChevronDown } from 'lucide-react';
+import { Plus, Minus, Info, Trash2, Edit2, Check, X, RotateCcw, ChevronDown, Sprout, Scissors, Droplets } from 'lucide-react';
 
 interface PositionAdjustmentProps {
   position: Position;
@@ -1035,12 +1035,12 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
               <div key={idx} className="card-bg">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-700 ${
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       entry.type === 'initial' ? 'bg-neutral/30 text-neutral' :
                       entry.type === 'add' ? 'bg-profit/20 text-profit' :
                       'bg-loss/20 text-loss'
                     }`}>
-                      {entry.type === 'initial' ? '●' : entry.type === 'add' ? '+' : '−'}
+                      {entry.type === 'initial' ? <Sprout size={16} /> : entry.type === 'add' ? <Droplets size={16} /> : <Scissors size={16} />}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
