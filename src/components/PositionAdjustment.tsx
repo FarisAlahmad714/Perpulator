@@ -459,42 +459,6 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
 
   return (
     <div className="w-full py-8 sm:py-12">
-      {/* Sticky PNL Bar */}
-      {livePrice?.price && (
-        <div className="sticky top-0 z-40 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 mb-8 bg-[#0A0E27]/95 backdrop-blur-md border-b border-slate-700/50">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-600 px-2 py-1 rounded bg-neutral/20 text-neutral">
-                {position.symbol}
-              </span>
-              <span className={`text-xs font-700 px-2 py-1 rounded ${
-                position.sideEntry === 'long' ? 'bg-profit/20 text-profit' : 'bg-loss/20 text-loss'
-              }`}>
-                {position.sideEntry.toUpperCase()}
-              </span>
-            </div>
-            <div className="flex items-center gap-6 text-sm">
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Size</p>
-                <p className="font-600 text-metric">${formatNumber(totals.totalSize)}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Price</p>
-                <p className="font-600 text-metric">${formatNumber(livePrice.price, 2)}</p>
-              </div>
-              {originalMetrics.pnlPercentage !== undefined && (
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">PNL</p>
-                  <p className={`font-700 ${originalMetrics.pnlPercentage >= 0 ? 'text-profit' : 'text-loss'}`}>
-                    {originalMetrics.pnlPercentage >= 0 ? '+' : ''}{formatNumber(originalMetrics.pnlPercentage, 2)}%
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Current Market Price + Position Summary */}
       <div className="mb-20 sm:mb-24 pb-12 sm:pb-16">
         {/* Live Market Price Card */}
@@ -640,6 +604,31 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
                 </p>
                 <p className="text-xs text-gray-500 mt-2">From {totals.reduceCount} reduction{totals.reduceCount > 1 ? 's' : ''}</p>
               </div>
+
+              {/* Total Reward Potential: realized PNL + remaining position's potential at TP */}
+              {(() => {
+                const remainingTP = position.takeProfit;
+                if (!remainingTP || totals.totalSize <= 0) return null;
+
+                const tpPriceDiff = remainingTP - totals.averageEntryPrice;
+                const remainingPotential = totals.totalSize * (tpPriceDiff / totals.averageEntryPrice) * (position.sideEntry === 'long' ? 1 : -1) * totals.averageLeverage;
+                const totalReward = totals.totalRealizedPNL + remainingPotential;
+
+                return (
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <p className="text-label">Total Reward Potential</p>
+                      <span className="tooltip-trigger" data-tooltip="Realized PNL from reductions + potential profit if remaining position hits TP">
+                        <Info size={16} className="text-neutral/50 hover:text-neutral transition-colors" />
+                      </span>
+                    </div>
+                    <p className={`text-4xl sm:text-5xl font-700 ${totalReward >= 0 ? 'text-profit' : 'text-loss'}`}>
+                      {totalReward >= 0 ? '+' : ''}${formatNumber(totalReward)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">Realized + remaining at TP (${formatNumber(remainingTP)})</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1173,7 +1162,7 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
                     {/* For reduce entries, show realized PNL and current PNL of remaining side by side */}
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <p className="text-xs text-gray-500 mb-2">Realized PNL (USD)</p>
+                        <p className="text-xs text-gray-500 mb-2">Realized PNL from Initial Entry (USD)</p>
                         <p className={`text-lg font-600 ${entryPNL >= 0 ? 'text-profit' : 'text-loss'}`}>
                           {entryPNL >= 0 ? '+' : ''}${formatNumber(entryPNL, 2)}
                         </p>
