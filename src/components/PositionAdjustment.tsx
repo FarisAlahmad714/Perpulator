@@ -281,22 +281,19 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
       };
     }
 
-    // Use updated stop loss if provided, otherwise use current position's stop loss
-    const effectiveStopLoss = stopLossPrice ? parseFloat(stopLossPrice) : position.stopLoss;
-
     const riskAmount = calculateRiskAmount(
       totals.averageEntryPrice,
-      effectiveStopLoss,
+      position.stopLoss,
       totals.totalSize,
       totals.averageLeverage,
       position.sideEntry
     );
 
     let rewardAmount = 0;
-    if (takeProfitPrice) {
+    if (position.takeProfit) {
       rewardAmount = calculateRewardAmount(
         totals.averageEntryPrice,
-        parseFloat(takeProfitPrice),
+        position.takeProfit,
         totals.totalSize,
         totals.averageLeverage,
         position.sideEntry
@@ -334,7 +331,7 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
       pnlPercentage,
       pnlUSD,
     };
-  }, [totals, position.stopLoss, position.sideEntry, takeProfitPrice, stopLossPrice, livePrice?.price]);
+  }, [totals, position.stopLoss, position.takeProfit, position.sideEntry, livePrice?.price]);
 
   const handleApplyAdjustment = () => {
     if (!proposedAdjustment) return;
