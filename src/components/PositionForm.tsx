@@ -140,6 +140,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         <label className="text-label mb-2 block">Entry Price</label>
         <input
           type="number"
+          inputMode="decimal"
           step="0.00000001"
           value={entryPrice}
           onChange={(e) => setEntryPrice(e.target.value)}
@@ -168,6 +169,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         <div className="flex items-baseline gap-4">
           <input
             type="number"
+            inputMode="decimal"
             step="0.00000001"
             value={useCoinsInput ? positionSizeCoins : positionSizeUSD}
             onChange={(e) =>
@@ -196,6 +198,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
           <label className="text-label mb-2 block">Leverage</label>
           <input
             type="number"
+            inputMode="decimal"
             min="1"
             max="50"
             step="0.1"
@@ -246,6 +249,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         <label className="text-label mb-2 block">Stop Loss (Optional)</label>
         <input
           type="number"
+          inputMode="decimal"
           step="0.00000001"
           value={stopLoss}
           onChange={(e) => setStopLoss(e.target.value)}
@@ -264,6 +268,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         <label className="text-label mb-2 block">Take Profit (Optional)</label>
         <input
           type="number"
+          inputMode="decimal"
           step="0.00000001"
           value={takeProfit}
           onChange={(e) => setTakeProfit(e.target.value)}

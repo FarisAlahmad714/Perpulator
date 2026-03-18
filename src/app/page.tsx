@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import NavToggle from '@/components/NavToggle';
 import PositionForm from '@/components/PositionForm';
 import PositionAdjustment from '@/components/PositionAdjustment';
 import PriceIndicator from '@/components/PriceIndicator';
@@ -136,6 +138,7 @@ export default function Home() {
               <p className="text-neutral text-sm sm:text-base tracking-widest font-600 uppercase letter-spacing">
                 {showSavedPositions ? `${savedPositions.length} position${savedPositions.length !== 1 ? 's' : ''}` : 'Professional Perpetual Futures Analysis'}
               </p>
+              {!showSavedPositions && <NavToggle active="calc" />}
             </div>
 
             {/* Subtle Spacer with Micro-detail */}

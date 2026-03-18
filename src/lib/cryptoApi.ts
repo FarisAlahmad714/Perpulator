@@ -4,26 +4,53 @@ const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3';
 
 // Mapping of common symbols to CoinGecko IDs
 const SYMBOL_TO_COINGECKO_ID: Record<string, string> = {
+  // Large caps
   'BTC': 'bitcoin',
   'ETH': 'ethereum',
   'BNB': 'binancecoin',
   'XRP': 'ripple',
-  'ADA': 'cardano',
   'SOL': 'solana',
-  'DOGE': 'dogecoin',
+  'TRX': 'tron',
+  'TON': 'the-open-network',
+  'ADA': 'cardano',
   'AVAX': 'avalanche-2',
-  'MATIC': 'matic-network',
+  'DOGE': 'dogecoin',
+  'DOT': 'polkadot',
+  'LTC': 'litecoin',
+  'BCH': 'bitcoin-cash',
+  'SHIB': 'shiba-inu',
+  // L2s / alt L1s
+  'SUI': 'sui',
+  'APT': 'aptos',
+  'OP': 'optimism',
+  'ARB': 'arbitrum',
+  'SEI': 'sei-network',
+  'INJ': 'injective-protocol',
+  'TIA': 'celestia',
+  'NEAR': 'near',
+  'ATOM': 'cosmos',
+  'HBAR': 'hedera-hashgraph',
+  'ICP': 'internet-computer',
+  'POL': 'matic-network',
+  // DeFi
+  'AAVE': 'aave',
   'LINK': 'chainlink',
   'UNI': 'uniswap',
+  'JUP': 'jupiter-exchange-solana',
+  // Memes
+  'PEPE': 'pepe',
+  'WIF': 'dogwifcoin',
+  'BONK': 'bonk',
+  'NOT': 'notcoin',
+  // AI / infra
+  'TAO': 'bittensor',
+  'FET': 'fetch-ai',
+  'RENDER': 'render-token',
+  'WLD': 'worldcoin-wld',
+  'PYTH': 'pyth-network',
+  // Other liquid
   'XLM': 'stellar',
-  'ATOM': 'cosmos',
-  'APE': 'apecoin',
-  'SHIB': 'shiba-inu',
-  'FTM': 'fantom',
-  'NEAR': 'near',
-  'SAND': 'the-sandbox',
-  'MANA': 'decentraland',
-  'GALA': 'gala',
+  'LDO': 'lido-dao',
 };
 
 export interface CryptoPrice {
