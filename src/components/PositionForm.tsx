@@ -130,7 +130,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
           onClick={() => { setShowAssetPicker(false); setAssetSearch(''); }}
         >
           <div
-            className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl p-6 flex flex-col"
+            className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl p-6 overflow-y-auto"
             style={{ backgroundColor: '#0F1535', maxHeight: '80vh', border: '1px solid rgba(148,163,184,0.15)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -154,31 +154,29 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
               autoFocus
             />
 
-            <div className="overflow-y-auto flex-1">
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                {filteredCryptos.map((crypto) => (
-                  <button
-                    key={crypto}
-                    type="button"
-                    onClick={() => {
-                      setSymbol(crypto);
-                      setShowAssetPicker(false);
-                      setAssetSearch('');
-                    }}
-                    className={`py-3 px-2 rounded-lg text-sm font-600 transition-all ${
-                      crypto === symbol
-                        ? 'bg-neutral/20 border border-neutral text-neutral'
-                        : 'bg-slate-800/50 border border-slate-700/50 text-gray-300 hover:border-slate-500 hover:text-white active:bg-slate-700/50'
-                    }`}
-                  >
-                    {crypto}
-                  </button>
-                ))}
-              </div>
-              {filteredCryptos.length === 0 && (
-                <p className="text-center text-gray-500 text-sm py-8">No assets found</p>
-              )}
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+              {filteredCryptos.map((crypto) => (
+                <button
+                  key={crypto}
+                  type="button"
+                  onClick={() => {
+                    setSymbol(crypto);
+                    setShowAssetPicker(false);
+                    setAssetSearch('');
+                  }}
+                  className={`py-3 px-2 rounded-lg text-sm font-600 transition-all ${
+                    crypto === symbol
+                      ? 'bg-neutral/20 border border-neutral text-neutral'
+                      : 'bg-slate-800/50 border border-slate-700/50 text-gray-300 hover:border-slate-500 hover:text-white active:bg-slate-700/50'
+                  }`}
+                >
+                  {crypto}
+                </button>
+              ))}
             </div>
+            {filteredCryptos.length === 0 && (
+              <p className="text-center text-gray-500 text-sm py-8">No assets found</p>
+            )}
           </div>
         </div>
       )}
