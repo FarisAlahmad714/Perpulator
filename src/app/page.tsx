@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import NavToggle from '@/components/NavToggle';
 import PositionForm from '@/components/PositionForm';
 import PositionAdjustment from '@/components/PositionAdjustment';
@@ -9,12 +8,11 @@ import PriceIndicator from '@/components/PriceIndicator';
 import SavedPositionsList from '@/components/SavedPositionsList';
 import { Position } from '@/types/position';
 import { usePositionStorage } from '@/hooks/usePositionStorage';
-import { Save, ChevronLeft, HelpCircle, ChevronDown } from 'lucide-react';
+import { Save, HelpCircle, ChevronDown } from 'lucide-react';
 
 export default function Home() {
   const [position, setPosition] = useState<Position | null>(null);
   const [showAdjustment, setShowAdjustment] = useState(false);
-  const [showSavedPositions, setShowSavedPositions] = useState(false);
   const [savedPositions, setSavedPositions] = useState<Position[]>([]);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -44,7 +42,6 @@ export default function Home() {
     setPosition(newPosition);
     saveActivePosition(newPosition);
     setShowAdjustment(true);
-    setShowSavedPositions(false);
   };
 
   const handlePositionUpdate = (updatedPosition: Position) => {
@@ -64,7 +61,6 @@ export default function Home() {
     setPosition(loadedPosition);
     saveActivePosition(loadedPosition);
     setShowAdjustment(true);
-    setShowSavedPositions(false);
   };
 
   const handleDeletePosition = (id: string) => {
@@ -86,12 +82,6 @@ export default function Home() {
     setPosition(null);
     saveActivePosition(null);
     setShowAdjustment(false);
-    setShowSavedPositions(false);
-  };
-
-  const handleShowSavedPositions = () => {
-    setSavedPositions(loadSavedPositions());
-    setShowSavedPositions(true);
   };
 
   return (
@@ -103,57 +93,24 @@ export default function Home() {
           <div className="mb-20 sm:mb-28">
             {/* Unified Heading Block */}
             <div className="space-y-2 sm:space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {showSavedPositions && (
-                    <button
-                      onClick={() => setShowSavedPositions(false)}
-                      className="text-neutral hover:text-cyan-300 transition-colors"
-                      title="Back to position"
-                    >
-                      <ChevronLeft size={28} />
-                    </button>
-                  )}
-                  <h1 className="text-6xl sm:text-7xl font-700 text-white tracking-tighter leading-tight">
-                    {showSavedPositions ? 'Saved Positions' : (
-                      <img
-                        src="/assets/logos/header.png"
-                        alt="Perpulator"
-                        className="h-16 sm:h-20 w-auto"
-                      />
-                    )}
-                  </h1>
-                </div>
-
-                {/* View Saved Positions Button - Top Right */}
-                {!showSavedPositions && !showAdjustment && savedPositions.length > 0 && (
-                  <button
-                    onClick={handleShowSavedPositions}
-                    className="text-sm font-600 px-4 py-2 rounded-lg bg-neutral/10 border border-neutral/30 text-neutral hover:bg-neutral/20 hover:border-neutral/50 transition-all"
-                  >
-                    {savedPositions.length} Saved
-                  </button>
-                )}
-              </div>
+              <h1 className="text-6xl sm:text-7xl font-700 text-white tracking-tighter leading-tight">
+                <img
+                  src="/assets/logos/header.png"
+                  alt="Perpulator"
+                  className="h-16 sm:h-20 w-auto"
+                />
+              </h1>
               <p className="text-neutral text-sm sm:text-base tracking-widest font-600 uppercase letter-spacing">
-                {showSavedPositions ? `${savedPositions.length} position${savedPositions.length !== 1 ? 's' : ''}` : 'Professional Perpetual Futures Analysis'}
+                Professional Perpetual Futures Analysis
               </p>
-              {!showSavedPositions && <NavToggle active="calc" />}
+              <NavToggle active="calc" />
             </div>
 
             {/* Subtle Spacer with Micro-detail */}
             <div className="mt-10 sm:mt-14 h-px bg-gradient-to-r from-transparent via-neutral/30 to-transparent" />
           </div>
 
-          {/* Show Saved Positions */}
-          {showSavedPositions ? (
-            <SavedPositionsList
-              positions={savedPositions}
-              onLoadPosition={handleLoadPosition}
-              onDeletePosition={handleDeletePosition}
-              onRenamePosition={handleRenamePosition}
-            />
-          ) : !showAdjustment ? (
+          {!showAdjustment ? (
             <>
               {/* How It Works - Collapsible */}
               <div className="mb-12 sm:mb-16">
@@ -224,6 +181,21 @@ export default function Home() {
               )}
             </div>
           ) : null}
+
+          {/* Saved Positions Section */}
+          {savedPositions.length > 0 && (
+            <div className="mt-20 pt-12 border-t border-gray-800/50">
+              <p className="text-label mb-8">
+                Saved Positions ({savedPositions.length})
+              </p>
+              <SavedPositionsList
+                positions={savedPositions}
+                onLoadPosition={handleLoadPosition}
+                onDeletePosition={handleDeletePosition}
+                onRenamePosition={handleRenamePosition}
+              />
+            </div>
+          )}
         </div>
 
         <footer className="w-full mt-20 pt-12 border-t border-gray-800/50">
