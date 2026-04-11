@@ -6,7 +6,7 @@ import { getSupportedCryptos } from '@/lib/cryptoApi';
 import { usePrice } from '@/contexts/PriceContext';
 import { validatePositionInput, getErrorMessage, ValidationError } from '@/utils/validation';
 import { trackPositionCalculated } from '@/lib/analytics';
-import { ArrowRight, ChevronDown, X } from 'lucide-react';
+import { ArrowRight, ChevronDown } from 'lucide-react';
 
 interface PositionFormProps {
   onSubmit: (position: Position) => void;
@@ -24,14 +24,9 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [useCoinsInput, setUseCoinsInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAssetPicker, setShowAssetPicker] = useState(false);
-  const [assetSearch, setAssetSearch] = useState('');
 
   const livePrice = usePrice(symbol);
   const supportedCryptos = getSupportedCryptos();
-  const filteredCryptos = supportedCryptos.filter((c) =>
-    c.toLowerCase().includes(assetSearch.toLowerCase())
-  );
 
   // Convert between USD and coins
   useEffect(() => {
@@ -108,76 +103,28 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const hasError = (field: string) => !!getErrorMessage(validationErrors, field);
 
   return (
-    <>
-      {/* Asset Picker Modal — rendered outside the form to avoid nested-button/form issues on desktop */}
-      {showAssetPicker && (
-        <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
-          onClick={() => { setShowAssetPicker(false); setAssetSearch(''); }}
-        >
-          <div
-            className="w-full max-w-2xl rounded-t-2xl sm:rounded-2xl p-6 overflow-y-auto"
-            style={{ backgroundColor: '#0F1535', maxHeight: '80vh', border: '1px solid rgba(148,163,184,0.15)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <span className="text-label">Select Asset</span>
-              <button
-                onClick={() => { setShowAssetPicker(false); setAssetSearch(''); }}
-                className="text-gray-400 hover:text-white transition-colors p-1"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <input
-              type="text"
-              value={assetSearch}
-              onChange={(e) => setAssetSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-neutral mb-5 text-sm"
-              autoFocus
-            />
-
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-              {filteredCryptos.map((crypto) => (
-                <button
-                  key={crypto}
-                  onClick={() => {
-                    setSymbol(crypto);
-                    setShowAssetPicker(false);
-                    setAssetSearch('');
-                  }}
-                  className={`py-3 px-2 rounded-lg text-sm font-600 transition-all ${
-                    crypto === symbol
-                      ? 'bg-neutral/20 border border-neutral text-neutral'
-                      : 'bg-slate-800/50 border border-slate-700/50 text-gray-300 hover:border-slate-500 hover:text-white active:bg-slate-700/50'
-                  }`}
-                >
-                  {crypto}
-                </button>
-              ))}
-            </div>
-            {filteredCryptos.length === 0 && (
-              <p className="text-center text-gray-500 text-sm py-8">No assets found</p>
-            )}
-          </div>
-        </div>
-      )}
-
     <form onSubmit={handleSubmit} className="w-full py-8 sm:py-12">
       {/* Crypto Selector */}
       <div className="mb-16 sm:mb-20">
         <label className="text-label mb-6 block">Select Asset</label>
-        <button
-          type="button"
-          onClick={() => setShowAssetPicker(true)}
-          className="input-field text-2xl sm:text-3xl font-600 flex items-center justify-between text-left"
-        >
-          <span>{symbol}</span>
-          <ChevronDown size={22} className="text-gray-400 flex-shrink-0" />
-        </button>
+        <div className="relative">
+          <select
+            value={symbol}
+            onChange={(e) => setSymbol(e.target.value)}
+            className="input-field text-2xl sm:text-3xl font-600 cursor-pointer appearance-none pr-10 w-full"
+            style={{ backgroundColor: '#0a0e27' }}
+          >
+            {supportedCryptos.map((crypto) => (
+              <option key={crypto} value={crypto} style={{ backgroundColor: '#0f1535', color: '#E8EAED' }}>
+                {crypto}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            size={22}
+            className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+          />
+        </div>
       </div>
 
       {/* Live Price Display */}
@@ -357,6 +304,5 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         />
       </button>
     </form>
-    </>
   );
 }
