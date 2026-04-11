@@ -108,21 +108,8 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const hasError = (field: string) => !!getErrorMessage(validationErrors, field);
 
   return (
-    <form onSubmit={handleSubmit} className="w-full py-8 sm:py-12">
-      {/* Crypto Selector */}
-      <div className="mb-16 sm:mb-20">
-        <label className="text-label mb-6 block">Select Asset</label>
-        <button
-          type="button"
-          onClick={() => setShowAssetPicker(true)}
-          className="input-field text-2xl sm:text-3xl font-600 flex items-center justify-between text-left"
-        >
-          <span>{symbol}</span>
-          <ChevronDown size={22} className="text-gray-400 flex-shrink-0" />
-        </button>
-      </div>
-
-      {/* Asset Picker Modal */}
+    <>
+      {/* Asset Picker Modal — rendered outside the form to avoid nested-button/form issues on desktop */}
       {showAssetPicker && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -137,7 +124,6 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
             <div className="flex items-center justify-between mb-5">
               <span className="text-label">Select Asset</span>
               <button
-                type="button"
                 onClick={() => { setShowAssetPicker(false); setAssetSearch(''); }}
                 className="text-gray-400 hover:text-white transition-colors p-1"
               >
@@ -158,7 +144,6 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
               {filteredCryptos.map((crypto) => (
                 <button
                   key={crypto}
-                  type="button"
                   onClick={() => {
                     setSymbol(crypto);
                     setShowAssetPicker(false);
@@ -180,6 +165,20 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
           </div>
         </div>
       )}
+
+    <form onSubmit={handleSubmit} className="w-full py-8 sm:py-12">
+      {/* Crypto Selector */}
+      <div className="mb-16 sm:mb-20">
+        <label className="text-label mb-6 block">Select Asset</label>
+        <button
+          type="button"
+          onClick={() => setShowAssetPicker(true)}
+          className="input-field text-2xl sm:text-3xl font-600 flex items-center justify-between text-left"
+        >
+          <span>{symbol}</span>
+          <ChevronDown size={22} className="text-gray-400 flex-shrink-0" />
+        </button>
+      </div>
 
       {/* Live Price Display */}
       {livePrice?.price && (
@@ -358,5 +357,6 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
         />
       </button>
     </form>
+    </>
   );
 }
