@@ -16,6 +16,8 @@ export default function Home() {
   const [savedPositions, setSavedPositions] = useState<Position[]>([]);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [pendingLoad, setPendingLoad] = useState<Position | null>(null);
   const {
     saveActivePosition,
     loadActivePosition,
@@ -28,13 +30,15 @@ export default function Home() {
   // Load active position from localStorage on mount
   useEffect(() => {
     if (isMounted) {
-      const savedPosition = loadActivePosition();
-      if (savedPosition) {
-        setPosition(savedPosition);
+      const activePosition = loadActivePosition();
+      const saved = loadSavedPositions();
+      setSavedPositions(saved);
+      if (activePosition) {
+        setPosition(activePosition);
         setShowAdjustment(true);
+        // Consider it saved if its ID exists in the saved list
+        setIsSaved(saved.some(p => p.id === activePosition.id));
       }
-      // Load list of saved positions
-      setSavedPositions(loadSavedPositions());
     }
   }, [isMounted, loadActivePosition, loadSavedPositions]);
 
@@ -42,30 +46,48 @@ export default function Home() {
     setPosition(newPosition);
     saveActivePosition(newPosition);
     setShowAdjustment(true);
+    setIsSaved(false);
   };
 
   const handlePositionUpdate = (updatedPosition: Position) => {
     setPosition(updatedPosition);
     saveActivePosition(updatedPosition);
+    setIsSaved(false);
   };
 
   const handleSavePosition = () => {
     if (!position) return;
     savePosition(position);
     setSavedPositions(loadSavedPositions());
+    setIsSaved(true);
     setShowSaveSuccess(true);
     setTimeout(() => setShowSaveSuccess(false), 3000);
   };
 
-  const handleLoadPosition = (loadedPosition: Position) => {
+  // Performs the actual load — called directly or after confirmation
+  const doLoadPosition = (loadedPosition: Position) => {
     setPosition(loadedPosition);
     saveActivePosition(loadedPosition);
     setShowAdjustment(true);
+    setIsSaved(true);
+    setPendingLoad(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLoadPosition = (loadedPosition: Position) => {
+    // Guard: warn if there's an active unsaved position
+    if (showAdjustment && !isSaved) {
+      setPendingLoad(loadedPosition);
+      return;
+    }
+    doLoadPosition(loadedPosition);
   };
 
   const handleDeletePosition = (id: string) => {
     deletePosition(id);
     setSavedPositions(loadSavedPositions());
+    // If the deleted position was the active one, mark as unsaved
+    if (position?.id === id) setIsSaved(false);
   };
 
   const handleRenamePosition = (id: string, newName: string) => {
@@ -82,10 +104,48 @@ export default function Home() {
     setPosition(null);
     saveActivePosition(null);
     setShowAdjustment(false);
+    setIsSaved(false);
   };
 
   return (
     <>
+      {/* Load Confirmation Modal */}
+      {pendingLoad && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
+          onClick={() => setPendingLoad(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6"
+            style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.15)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-white font-600 text-lg mb-2">Load this position?</h3>
+            <p className="text-gray-400 text-sm mb-1">
+              <span className="text-neutral">{pendingLoad.name}</span>
+            </p>
+            <p className="text-gray-500 text-sm mb-6">
+              Your current position has unsaved changes that will be lost.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingLoad(null)}
+                className="flex-1 py-3 px-4 rounded-lg border border-slate-600/60 text-gray-400 font-600 text-sm hover:border-slate-500 hover:text-white transition-all"
+              >
+                Keep Working
+              </button>
+              <button
+                onClick={() => doLoadPosition(pendingLoad)}
+                className="flex-1 py-3 px-4 rounded-lg bg-neutral/20 border border-neutral/60 text-neutral font-600 text-sm hover:bg-neutral/30 transition-all"
+              >
+                Load Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <PriceIndicator />
       <div className="flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 py-12 sm:py-16">
         <div className="w-full max-w-2xl flex-1">

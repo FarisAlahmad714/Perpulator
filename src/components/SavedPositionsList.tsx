@@ -175,7 +175,7 @@ export default function SavedPositionsList({
                       </div>
                       <button
                         onClick={(e) => handleStartEdit(e, position.id, position.customName || '')}
-                        className="p-1 text-gray-400 hover:text-neutral hover:bg-neutral/20 rounded transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1 text-gray-400 hover:text-neutral hover:bg-neutral/20 rounded transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                         title="Rename position"
                       >
                         <Edit2 size={16} />
@@ -207,7 +207,7 @@ export default function SavedPositionsList({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => onLoadPosition(position)}
-                  className="hidden group-hover:flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral/20 text-neutral hover:bg-neutral/30 transition-colors text-sm font-600"
+                  className="flex sm:hidden sm:group-hover:flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral/20 text-neutral hover:bg-neutral/30 transition-colors text-sm font-600"
                   title="Load this position"
                 >
                   Load
