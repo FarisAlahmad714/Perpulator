@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { Key, Trash2, Plus, Copy, Check, AlertTriangle, X, Terminal, Loader2 } from 'lucide-react';
+import { Key, Trash2, Plus, Copy, Check, AlertTriangle, X, Terminal, Loader2, Activity } from 'lucide-react';
 import NavToggle from '@/components/NavToggle';
 import AuthButton from '@/components/AuthButton';
 import PriceIndicator from '@/components/PriceIndicator';
@@ -17,7 +16,13 @@ interface ApiKey {
 }
 
 interface CreatedKey extends ApiKey {
-  key: string; // raw key — only available at creation
+  key: string;
+}
+
+interface UsageData {
+  hourlyUsed: number;
+  hourlyLimit: number;
+  dailyUsage: { date: string; count: number }[];
 }
 
 function formatDate(dateStr: string | null): string {
@@ -27,6 +32,150 @@ function formatDate(dateStr: string | null): string {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatDay(dateStr: string): string {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+// ── Mini usage bar chart ───────────────────────────────────────────────────────
+function UsageChart({ usage }: { usage: UsageData }) {
+  const max = Math.max(...usage.dailyUsage.map((d) => d.count), 1);
+  const pct = usage.hourlyLimit > 0 ? (usage.hourlyUsed / usage.hourlyLimit) * 100 : 0;
+  const barColor = pct >= 90 ? '#f87171' : pct >= 60 ? '#fbbf24' : '#00d4ff';
+
+  return (
+    <div className="space-y-4 pt-3 pb-1">
+      {/* Rate limit bar */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">This hour</span>
+          <span className="text-xs font-600 font-mono" style={{ color: barColor }}>
+            {usage.hourlyUsed} / {usage.hourlyLimit}
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+          />
+        </div>
+      </div>
+
+      {/* 7-day chart */}
+      <div className="space-y-1.5">
+        <span className="text-xs text-gray-500">Last 7 days</span>
+        <div className="flex items-end gap-1 h-12">
+          {usage.dailyUsage.map((d) => {
+            const h = max > 0 ? Math.max((d.count / max) * 100, d.count > 0 ? 8 : 4) : 4;
+            return (
+              <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group relative">
+                <div
+                  className="w-full rounded-sm transition-all"
+                  style={{
+                    height: `${h}%`,
+                    minHeight: '3px',
+                    backgroundColor: d.count > 0 ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.06)',
+                  }}
+                />
+                {/* Tooltip on hover */}
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-1.5 py-0.5 whitespace-nowrap z-10">
+                  {d.count} req
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-1">
+          {usage.dailyUsage.map((d) => (
+            <div key={d.date} className="flex-1 text-center text-gray-700 text-[9px]">
+              {formatDay(d.date)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Key row with inline usage ──────────────────────────────────────────────────
+function KeyRow({ k, onDelete }: { k: ApiKey; onDelete: (k: ApiKey) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [usage, setUsage] = useState<UsageData | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+
+  const fetchUsage = useCallback(async () => {
+    if (usage) return; // already loaded
+    setLoadingUsage(true);
+    try {
+      const res = await fetch(`/api/keys/${k.id}/usage`);
+      if (res.ok) setUsage(await res.json());
+    } finally {
+      setLoadingUsage(false);
+    }
+  }, [k.id, usage]);
+
+  const handleExpand = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next) fetchUsage();
+  };
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-white font-600 truncate">{k.name}</p>
+            <span
+              className="shrink-0 text-xs font-600 px-1.5 py-0.5 rounded"
+              style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00d4ff' }}
+            >
+              {k.totalRequests.toLocaleString()} req
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Created {formatDate(k.createdAt)}
+            {k.lastUsedAt
+              ? <span className="ml-2 text-gray-600">· Last used {formatDate(k.lastUsedAt)}</span>
+              : <span className="ml-2 text-gray-700">· Never used</span>}
+          </p>
+        </div>
+        <button
+          onClick={handleExpand}
+          className="shrink-0 p-2 rounded-lg text-gray-600 hover:text-neutral hover:bg-neutral/10 transition-all"
+          title="Usage stats"
+        >
+          <Activity size={14} />
+        </button>
+        <button
+          onClick={() => onDelete(k)}
+          className="shrink-0 p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          title="Revoke key"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      {expanded && (
+        <div className="px-4 pb-4 border-t border-white/5">
+          {loadingUsage ? (
+            <div className="flex items-center gap-2 pt-4">
+              <Loader2 size={12} className="animate-spin text-neutral" />
+              <span className="text-xs text-gray-500">Loading usage…</span>
+            </div>
+          ) : usage ? (
+            <UsageChart usage={usage} />
+          ) : (
+            <p className="text-xs text-gray-600 pt-3">Failed to load usage data.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── One-time key reveal modal ──────────────────────────────────────────────────
@@ -58,7 +207,6 @@ function KeyRevealModal({ createdKey, onClose }: { createdKey: CreatedKey; onClo
           </button>
         </div>
 
-        {/* Warning */}
         <div
           className="flex items-start gap-3 rounded-lg p-3"
           style={{ backgroundColor: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)' }}
@@ -69,7 +217,6 @@ function KeyRevealModal({ createdKey, onClose }: { createdKey: CreatedKey; onClo
           </p>
         </div>
 
-        {/* Key display */}
         <div
           className="flex items-center gap-3 rounded-lg p-3 font-mono text-xs text-neutral overflow-x-auto"
           style={{ backgroundColor: 'rgba(0,0,0,0.4)', border: '1px solid rgba(148,163,184,0.12)' }}
@@ -84,7 +231,6 @@ function KeyRevealModal({ createdKey, onClose }: { createdKey: CreatedKey; onClo
           </button>
         </div>
 
-        {/* Quick start */}
         <div className="space-y-2">
           <p className="text-xs text-gray-500 font-600 uppercase tracking-widest">Quick Start</p>
           <div
@@ -159,7 +305,6 @@ function DeleteConfirmModal({
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
@@ -229,7 +374,6 @@ export default function SettingsPage() {
     setTimeout(() => setCopiedSnippet(false), 2000);
   };
 
-  // ── Redirect / loading states ─────────────────────────────────────────────
   if (status === 'loading' || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -242,10 +386,7 @@ export default function SettingsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4">
         <p className="text-gray-400 text-sm">Sign in to manage your API keys.</p>
-        <button
-          onClick={() => signIn()}
-          className="btn-primary px-6 py-2.5 text-sm"
-        >
+        <button onClick={() => signIn()} className="btn-primary px-6 py-2.5 text-sm">
           Sign In
         </button>
       </div>
@@ -259,10 +400,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      {/* Modals */}
-      {createdKey && (
-        <KeyRevealModal createdKey={createdKey} onClose={() => setCreatedKey(null)} />
-      )}
+      {createdKey && <KeyRevealModal createdKey={createdKey} onClose={() => setCreatedKey(null)} />}
       {pendingDelete && (
         <DeleteConfirmModal
           keyName={pendingDelete.name}
@@ -275,16 +413,12 @@ export default function SettingsPage() {
       <PriceIndicator />
       <div className="flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 py-12 sm:py-16">
         <div className="w-full max-w-2xl">
-          {/* Header — matches other pages */}
+          {/* Header */}
           <div className="mb-20 sm:mb-28">
             <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center justify-between">
                 <h1 className="text-6xl sm:text-7xl font-700 text-white tracking-tighter leading-tight">
-                  <img
-                    src="/assets/logos/header.png"
-                    alt="Perpulator"
-                    className="h-16 sm:h-20 w-auto"
-                  />
+                  <img src="/assets/logos/header.png" alt="Perpulator" className="h-16 sm:h-20 w-auto" />
                 </h1>
                 <AuthButton />
               </div>
@@ -296,7 +430,7 @@ export default function SettingsPage() {
             <div className="mt-10 sm:mt-14 h-px bg-gradient-to-r from-transparent via-neutral/30 to-transparent" />
           </div>
 
-          {/* ── API Keys section ──────────────────────────────────────────── */}
+          {/* API Keys */}
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -305,7 +439,8 @@ export default function SettingsPage() {
                   API Keys ({keys.length}/5)
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Use these keys to call the Perpulator API or run the OpenClaw skill.
+                  Use these keys to call the Perpulator API or run the OpenClaw skill. Click{' '}
+                  <Activity size={11} className="inline" /> to see usage stats.
                 </p>
               </div>
               {!showCreateForm && keys.length < 5 && (
@@ -319,7 +454,6 @@ export default function SettingsPage() {
               )}
             </div>
 
-            {/* Create form */}
             {showCreateForm && (
               <div
                 className="rounded-xl p-4 space-y-3"
@@ -355,7 +489,6 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Keys list */}
             {keys.length === 0 ? (
               <div
                 className="rounded-xl p-8 text-center"
@@ -368,41 +501,13 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-2">
                 {keys.map((k) => (
-                  <div
-                    key={k.id}
-                    className="flex items-center justify-between rounded-xl px-4 py-3"
-                    style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm text-white font-600 truncate">{k.name}</p>
-                        <span className="shrink-0 text-xs font-600 px-1.5 py-0.5 rounded"
-                          style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00d4ff' }}>
-                          {k.totalRequests.toLocaleString()} req
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        Created {formatDate(k.createdAt)}
-                        {k.lastUsedAt
-                          ? <span className="ml-2 text-gray-600">· Last used {formatDate(k.lastUsedAt)}</span>
-                          : <span className="ml-2 text-gray-700">· Never used</span>
-                        }
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setPendingDelete(k)}
-                      className="ml-4 shrink-0 p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                      title="Revoke key"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  <KeyRow key={k.id} k={k} onDelete={setPendingDelete} />
                 ))}
               </div>
             )}
           </div>
 
-          {/* ── API Reference ─────────────────────────────────────────────── */}
+          {/* API Reference */}
           <div className="mt-16 pt-10 border-t border-gray-800/50 space-y-6">
             <div>
               <p className="text-label text-neutral flex items-center gap-2">
@@ -411,42 +516,40 @@ export default function SettingsPage() {
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Base URL: <span className="text-gray-400 font-mono">https://perpulator.vercel.app/api/v1</span>
+                {' · '}
+                <a href="/docs" className="text-neutral hover:underline">Full docs →</a>
               </p>
             </div>
 
-            {/* Endpoint cards */}
             {[
-              {
-                method: 'POST',
-                path: '/calculate',
-                desc: 'Calculate a position — liq price, risk/reward, PnL',
-              },
-              {
-                method: 'GET',
-                path: '/positions',
-                desc: 'Retrieve your saved positions',
-              },
-            ].map(({ method, path, desc }) => (
-              <div
-                key={path}
-                className="flex items-center gap-4 rounded-xl px-4 py-3"
-                style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
-              >
-                <span
-                  className="shrink-0 text-xs font-700 font-mono px-2 py-0.5 rounded"
-                  style={{
-                    backgroundColor: method === 'POST' ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)',
-                    color: method === 'POST' ? '#4ade80' : '#60a5fa',
-                  }}
+              { method: 'POST', path: '/calculate', desc: 'Calculate liq price, risk/reward, PnL' },
+              { method: 'GET',  path: '/positions', desc: 'Retrieve saved positions' },
+              { method: 'POST', path: '/positions', desc: 'Save a position' },
+              { method: 'DELETE', path: '/positions/:id', desc: 'Delete a position' },
+              { method: 'GET',  path: '/prices',    desc: 'Live prices for up to 10 assets' },
+              { method: 'POST', path: '/plan',      desc: 'Probability-based trading plan (6 tiers)' },
+            ].map(({ method, path, desc }) => {
+              const colors: Record<string, { bg: string; text: string }> = {
+                POST:   { bg: 'rgba(34,197,94,0.12)',  text: '#4ade80' },
+                GET:    { bg: 'rgba(59,130,246,0.12)', text: '#60a5fa' },
+                DELETE: { bg: 'rgba(239,68,68,0.12)',  text: '#f87171' },
+              };
+              const c = colors[method];
+              return (
+                <div
+                  key={`${method}-${path}`}
+                  className="flex items-center gap-4 rounded-xl px-4 py-3"
+                  style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
                 >
-                  {method}
-                </span>
-                <code className="text-xs text-gray-300 font-mono">{path}</code>
-                <span className="text-xs text-gray-500 hidden sm:block">{desc}</span>
-              </div>
-            ))}
+                  <span className="shrink-0 text-xs font-700 font-mono px-2 py-0.5 rounded" style={{ backgroundColor: c.bg, color: c.text }}>
+                    {method}
+                  </span>
+                  <code className="text-xs text-gray-300 font-mono">{path}</code>
+                  <span className="text-xs text-gray-500 hidden sm:block">{desc}</span>
+                </div>
+              );
+            })}
 
-            {/* Auth header note */}
             <div
               className="rounded-xl p-4"
               style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
@@ -455,7 +558,6 @@ export default function SettingsPage() {
               <code className="text-xs text-gray-300 font-mono">Authorization: Bearer perp_...</code>
             </div>
 
-            {/* Example curl */}
             <div
               className="rounded-xl p-4 space-y-2"
               style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
@@ -475,13 +577,9 @@ export default function SettingsPage() {
               </pre>
             </div>
 
-            {/* OpenClaw install */}
             <div
               className="rounded-xl p-4 space-y-3"
-              style={{
-                backgroundColor: 'rgba(0, 212, 255, 0.04)',
-                border: '1px solid rgba(0, 212, 255, 0.12)',
-              }}
+              style={{ backgroundColor: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.12)' }}
             >
               <p className="text-xs text-neutral font-600 uppercase tracking-widest">OpenClaw — Claude Code Skill</p>
               <p className="text-xs text-gray-400 leading-relaxed">
