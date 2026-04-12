@@ -68,6 +68,24 @@ export async function GET() {
     dailyUsage.push({ date: key, count: dailyMap.get(key) ?? 0 });
   }
 
+  // Per-key endpoint breakdown (how each key is being used)
+  const endpointBreakdownRows = await db
+    .select({
+      keyId: apiRequestLogs.keyId,
+      endpoint: apiRequestLogs.endpoint,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(apiRequestLogs)
+    .groupBy(apiRequestLogs.keyId, apiRequestLogs.endpoint)
+    .orderBy(sql`count(*) DESC`);
+
+  // Map keyId → endpoint counts
+  const endpointByKey = new Map<string, { endpoint: string; count: number }[]>();
+  for (const row of endpointBreakdownRows) {
+    if (!endpointByKey.has(row.keyId)) endpointByKey.set(row.keyId, []);
+    endpointByKey.get(row.keyId)!.push({ endpoint: row.endpoint, count: row.count });
+  }
+
   // Recent activity (last 30 log entries)
   const recentActivity = await db
     .select({
@@ -83,27 +101,24 @@ export async function GET() {
     .orderBy(desc(apiRequestLogs.createdAt))
     .limit(30);
 
-  // Group keys by user
+  // Group keys by user, attaching endpoint breakdown to each key
   const userMap = new Map<string, {
     userId: string;
     email: string | null;
     name: string | null;
     image: string | null;
-    keys: typeof allKeys;
+    keys: (typeof allKeys[number] & { endpointBreakdown: { endpoint: string; count: number }[] })[];
   }>();
 
   for (const row of allKeys) {
     const uid = row.userId ?? 'unknown';
     if (!userMap.has(uid)) {
-      userMap.set(uid, {
-        userId: uid,
-        email: row.userEmail,
-        name: row.userName,
-        image: row.userImage,
-        keys: [],
-      });
+      userMap.set(uid, { userId: uid, email: row.userEmail, name: row.userName, image: row.userImage, keys: [] });
     }
-    userMap.get(uid)!.keys.push(row);
+    userMap.get(uid)!.keys.push({
+      ...row,
+      endpointBreakdown: endpointByKey.get(row.keyId) ?? [],
+    });
   }
 
   return Response.json({
