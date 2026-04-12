@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react';
 import NavToggle from '@/components/NavToggle';
 import PositionForm from '@/components/PositionForm';
 import PositionAdjustment from '@/components/PositionAdjustment';
 import PriceIndicator from '@/components/PriceIndicator';
 import SavedPositionsList from '@/components/SavedPositionsList';
+import AuthButton from '@/components/AuthButton';
 import { Position } from '@/types/position';
 import { usePositionStorage } from '@/hooks/usePositionStorage';
 import { Save, HelpCircle, ChevronDown } from 'lucide-react';
@@ -24,10 +26,12 @@ export default function Home() {
     savePosition,
     loadSavedPositions,
     deletePosition,
-    isMounted
+    refreshFromCloud,
+    isMounted,
+    isAuthenticated,
   } = usePositionStorage();
 
-  // Load active position from localStorage on mount
+  // Load from localStorage on mount
   useEffect(() => {
     if (isMounted) {
       const activePosition = loadActivePosition();
@@ -36,11 +40,20 @@ export default function Home() {
       if (activePosition) {
         setPosition(activePosition);
         setShowAdjustment(true);
-        // Consider it saved if its ID exists in the saved list
         setIsSaved(saved.some(p => p.id === activePosition.id));
       }
     }
   }, [isMounted, loadActivePosition, loadSavedPositions]);
+
+  // When user signs in, pull their positions from DB and merge into the UI
+  useEffect(() => {
+    if (!isAuthenticated || !isMounted) return;
+    refreshFromCloud().then((cloudPositions) => {
+      if (cloudPositions && cloudPositions.length > 0) {
+        setSavedPositions(cloudPositions);
+      }
+    });
+  }, [isAuthenticated, isMounted]);
 
   const handlePositionSubmit = (newPosition: Position) => {
     setPosition(newPosition);
@@ -153,13 +166,16 @@ export default function Home() {
           <div className="mb-20 sm:mb-28">
             {/* Unified Heading Block */}
             <div className="space-y-2 sm:space-y-3">
-              <h1 className="text-6xl sm:text-7xl font-700 text-white tracking-tighter leading-tight">
-                <img
-                  src="/assets/logos/header.png"
-                  alt="Perpulator"
-                  className="h-16 sm:h-20 w-auto"
-                />
-              </h1>
+              <div className="flex items-center justify-between">
+                <h1 className="text-6xl sm:text-7xl font-700 text-white tracking-tighter leading-tight">
+                  <img
+                    src="/assets/logos/header.png"
+                    alt="Perpulator"
+                    className="h-16 sm:h-20 w-auto"
+                  />
+                </h1>
+                <AuthButton />
+              </div>
               <p className="text-neutral text-sm sm:text-base tracking-widest font-600 uppercase letter-spacing">
                 Professional Perpetual Futures Analysis
               </p>
@@ -232,6 +248,19 @@ export default function Home() {
                   Enter New Position
                 </button>
               </div>
+
+              {/* Sign-in nudge for guests */}
+              {!isAuthenticated && (
+                <p className="text-center text-xs text-gray-500">
+                  <button
+                    onClick={() => signIn()}
+                    className="text-neutral hover:underline"
+                  >
+                    Sign in
+                  </button>{' '}
+                  to sync your positions across devices
+                </p>
+              )}
 
               {/* Save Success Message */}
               {showSaveSuccess && (
