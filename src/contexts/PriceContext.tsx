@@ -183,13 +183,16 @@ export function usePriceContext() {
 
 export function usePrice(symbol: string) {
   const { prices, trackSymbol, fetchPrices } = usePriceContext();
-  const [loading, setLoading] = useState(false);
+  // Start loading immediately if price not yet cached
+  const [loading, setLoading] = useState(() => !prices.has(symbol));
 
   useEffect(() => {
     trackSymbol(symbol);
     if (!prices.has(symbol)) {
       setLoading(true);
       fetchPrices(true).finally(() => setLoading(false));
+    } else {
+      setLoading(false);
     }
   }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
