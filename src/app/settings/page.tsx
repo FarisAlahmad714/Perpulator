@@ -13,6 +13,7 @@ interface ApiKey {
   name: string;
   createdAt: string;
   lastUsedAt: string | null;
+  totalRequests: number;
 }
 
 interface CreatedKey extends ApiKey {
@@ -200,7 +201,7 @@ export default function SettingsPage() {
         return;
       }
       setCreatedKey(data);
-      setKeys((prev) => [...prev, { id: data.id, name: data.name, createdAt: data.createdAt, lastUsedAt: null }]);
+      setKeys((prev) => [...prev, { id: data.id, name: data.name, createdAt: data.createdAt, lastUsedAt: null, totalRequests: 0 }]);
       setShowCreateForm(false);
       setNewKeyName('');
     } finally {
@@ -373,12 +374,19 @@ export default function SettingsPage() {
                     style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-white font-600 truncate">{k.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-white font-600 truncate">{k.name}</p>
+                        <span className="shrink-0 text-xs font-600 px-1.5 py-0.5 rounded"
+                          style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00d4ff' }}>
+                          {k.totalRequests.toLocaleString()} req
+                        </span>
+                      </div>
                       <p className="text-xs text-gray-500 mt-0.5">
                         Created {formatDate(k.createdAt)}
-                        {k.lastUsedAt && (
-                          <span className="ml-2 text-gray-600">· Last used {formatDate(k.lastUsedAt)}</span>
-                        )}
+                        {k.lastUsedAt
+                          ? <span className="ml-2 text-gray-600">· Last used {formatDate(k.lastUsedAt)}</span>
+                          : <span className="ml-2 text-gray-700">· Never used</span>
+                        }
                       </p>
                     </div>
                     <button

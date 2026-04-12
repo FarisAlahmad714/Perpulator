@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
 import { db } from '@/lib/db';
 import { positions } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -26,29 +26,37 @@ export async function GET(req: Request) {
       { status: 401, headers }
     );
   }
-  let userId: string | null;
+
+  let result: Awaited<ReturnType<typeof validateApiKey>>;
   try {
-    userId = await validateApiKey(rawKey);
+    result = await validateApiKey(rawKey);
   } catch {
     return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers });
   }
-  if (!userId) {
+
+  if (result === null) {
     return Response.json({ error: 'Invalid or expired API key' }, { status: 401, headers });
   }
+  if (result === 'rate_limited') {
+    return Response.json(
+      { error: 'Rate limit exceeded. Max 100 requests per hour per key.' },
+      { status: 429, headers }
+    );
+  }
 
-  const rows = await db
-    .select()
-    .from(positions)
-    .where(eq(positions.userId, userId));
+  const { userId, keyId } = result;
 
-  const result = rows.map((row) => {
-    const data = row.data as Position;
+  const rows = await db.select().from(positions).where(eq(positions.userId, userId));
+
+  const data = rows.map((row) => {
+    const pos = row.data as Position;
     return {
-      ...data,
-      timestamp: new Date(data.timestamp),
-      savedAt: new Date(data.savedAt),
+      ...pos,
+      timestamp: new Date(pos.timestamp),
+      savedAt: new Date(pos.savedAt),
     };
   });
 
-  return Response.json(result, { headers });
+  logApiRequest(keyId, userId, '/api/v1/positions', 200);
+  return Response.json(data, { headers });
 }

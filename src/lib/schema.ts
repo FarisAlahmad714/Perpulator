@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, jsonb, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, jsonb, primaryKey, index } from 'drizzle-orm/pg-core';
 
 // ─── NextAuth required tables ─────────────────────────────────────────────────
 
@@ -58,7 +58,6 @@ export const positions = pgTable('positions', {
   updatedAt: timestamp('updatedAt', { mode: 'date' }).notNull().defaultNow(),
 });
 
-// Future: API keys for public API / OpenClaw skill access
 export const apiKeys = pgTable('api_keys', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -66,4 +65,18 @@ export const apiKeys = pgTable('api_keys', {
   name: text('name').notNull().default('Default'),
   createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
   lastUsedAt: timestamp('lastUsedAt', { mode: 'date' }),
+  totalRequests: integer('totalRequests').notNull().default(0),
 });
+
+export const apiRequestLogs = pgTable(
+  'api_request_logs',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    keyId: text('keyId').notNull().references(() => apiKeys.id, { onDelete: 'cascade' }),
+    userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    status: integer('status').notNull(),
+    createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (t) => ({ keyCreatedIdx: index('idx_logs_key_created').on(t.keyId, t.createdAt) })
+);

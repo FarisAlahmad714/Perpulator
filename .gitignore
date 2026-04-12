@@ -34,3 +34,9 @@ coverage
 
 # Misc
 *.tsbuildinfo
+
+# Claude Code local settings (may contain secrets)
+.claude/settings.local.json
+
+# Windows artifacts
+nul

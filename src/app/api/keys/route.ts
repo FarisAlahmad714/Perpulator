@@ -18,6 +18,7 @@ export async function GET() {
       name: apiKeys.name,
       createdAt: apiKeys.createdAt,
       lastUsedAt: apiKeys.lastUsedAt,
+      totalRequests: apiKeys.totalRequests,
     })
     .from(apiKeys)
     .where(eq(apiKeys.userId, session.user.id));

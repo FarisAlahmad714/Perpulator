@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
 import {
   calculateRiskAmount,
   calculateRewardAmount,
@@ -41,21 +41,32 @@ export async function POST(req: Request) {
       { status: 401, headers }
     );
   }
-  let userId: string | null;
+
+  let authResult: Awaited<ReturnType<typeof validateApiKey>>;
   try {
-    userId = await validateApiKey(rawKey);
+    authResult = await validateApiKey(rawKey);
   } catch {
     return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers });
   }
-  if (!userId) {
+
+  if (authResult === null) {
     return Response.json({ error: 'Invalid or expired API key' }, { status: 401, headers });
   }
+  if (authResult === 'rate_limited') {
+    return Response.json(
+      { error: 'Rate limit exceeded. Max 100 requests per hour per key.' },
+      { status: 429, headers }
+    );
+  }
+
+  const { userId, keyId } = authResult;
 
   // ── Parse body ──────────────────────────────────────────────────────────────
   let body: CalculateRequest;
   try {
     body = await req.json();
   } catch {
+    logApiRequest(keyId, userId, '/api/v1/calculate', 400);
     return Response.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
 
@@ -65,44 +76,31 @@ export async function POST(req: Request) {
   // ── Validate required fields ─────────────────────────────────────────────────
   const errors: string[] = [];
 
-  if (!symbol || typeof symbol !== 'string') {
-    errors.push('symbol is required (e.g. "BTC")');
-  }
-  if (side !== 'long' && side !== 'short') {
-    errors.push('side must be "long" or "short"');
-  }
-  if (typeof entryPrice !== 'number' || entryPrice <= 0) {
-    errors.push('entryPrice must be a positive number');
-  }
-  if (typeof positionSize !== 'number' || positionSize <= 0) {
-    errors.push('positionSize (margin in USD) must be a positive number');
-  }
-  if (typeof leverage !== 'number' || leverage < 1 || leverage > 125) {
-    errors.push('leverage must be between 1 and 125');
-  }
-  if (stopLoss !== undefined && (typeof stopLoss !== 'number' || stopLoss <= 0)) {
-    errors.push('stopLoss must be a positive number');
-  }
-  if (takeProfit !== undefined && (typeof takeProfit !== 'number' || takeProfit <= 0)) {
-    errors.push('takeProfit must be a positive number');
-  }
-  if (currentPrice !== undefined && (typeof currentPrice !== 'number' || currentPrice <= 0)) {
-    errors.push('currentPrice must be a positive number');
-  }
+  if (!symbol || typeof symbol !== 'string') errors.push('symbol is required (e.g. "BTC")');
+  if (side !== 'long' && side !== 'short') errors.push('side must be "long" or "short"');
+  if (typeof entryPrice !== 'number' || entryPrice <= 0) errors.push('entryPrice must be a positive number');
+  if (typeof positionSize !== 'number' || positionSize <= 0) errors.push('positionSize (margin in USD) must be a positive number');
+  if (typeof leverage !== 'number' || leverage < 1 || leverage > 125) errors.push('leverage must be between 1 and 125');
+  if (stopLoss !== undefined && (typeof stopLoss !== 'number' || stopLoss <= 0)) errors.push('stopLoss must be a positive number');
+  if (takeProfit !== undefined && (typeof takeProfit !== 'number' || takeProfit <= 0)) errors.push('takeProfit must be a positive number');
+  if (currentPrice !== undefined && (typeof currentPrice !== 'number' || currentPrice <= 0)) errors.push('currentPrice must be a positive number');
 
   if (errors.length > 0) {
+    logApiRequest(keyId, userId, '/api/v1/calculate', 422);
     return Response.json({ error: 'Validation failed', details: errors }, { status: 422, headers });
   }
 
   // ── Directional SL/TP sanity checks ─────────────────────────────────────────
   if (stopLoss !== undefined) {
     if (side === 'long' && stopLoss >= entryPrice) {
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
       return Response.json(
         { error: 'For a LONG position, stopLoss must be below entryPrice' },
         { status: 422, headers }
       );
     }
     if (side === 'short' && stopLoss <= entryPrice) {
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
       return Response.json(
         { error: 'For a SHORT position, stopLoss must be above entryPrice' },
         { status: 422, headers }
@@ -111,12 +109,14 @@ export async function POST(req: Request) {
   }
   if (takeProfit !== undefined) {
     if (side === 'long' && takeProfit <= entryPrice) {
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
       return Response.json(
         { error: 'For a LONG position, takeProfit must be above entryPrice' },
         { status: 422, headers }
       );
     }
     if (side === 'short' && takeProfit >= entryPrice) {
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
       return Response.json(
         { error: 'For a SHORT position, takeProfit must be below entryPrice' },
         { status: 422, headers }
@@ -126,7 +126,6 @@ export async function POST(req: Request) {
 
   // ── Calculations ─────────────────────────────────────────────────────────────
   const notionalSize = positionSize * leverage;
-
   const riskAmount = calculateRiskAmount(entryPrice, stopLoss, positionSize, leverage, side);
   const rewardAmount =
     takeProfit !== undefined
@@ -143,6 +142,7 @@ export async function POST(req: Request) {
     pnlPercentage = result.pnlPercentage;
   }
 
+  logApiRequest(keyId, userId, '/api/v1/calculate', 200);
   return Response.json(
     {
       symbol: symbol.toUpperCase(),

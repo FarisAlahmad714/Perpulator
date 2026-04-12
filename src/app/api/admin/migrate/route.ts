@@ -80,9 +80,26 @@ export async function POST(req: Request) {
       "key" text NOT NULL UNIQUE,
       "name" text NOT NULL DEFAULT 'Default',
       "createdAt" timestamp NOT NULL DEFAULT now(),
-      "lastUsedAt" timestamp
+      "lastUsedAt" timestamp,
+      "totalRequests" integer NOT NULL DEFAULT 0
     )`;
     results.push('api_keys ✓');
+
+    await sql`ALTER TABLE "api_keys" ADD COLUMN IF NOT EXISTS "totalRequests" integer NOT NULL DEFAULT 0`;
+    results.push('api_keys.totalRequests ✓');
+
+    await sql`CREATE TABLE IF NOT EXISTS "api_request_logs" (
+      "id" text PRIMARY KEY NOT NULL,
+      "keyId" text NOT NULL REFERENCES "api_keys"("id") ON DELETE CASCADE,
+      "userId" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+      "endpoint" text NOT NULL,
+      "status" integer NOT NULL,
+      "createdAt" timestamp NOT NULL DEFAULT now()
+    )`;
+    results.push('api_request_logs ✓');
+
+    await sql`CREATE INDEX IF NOT EXISTS idx_logs_key_created ON "api_request_logs"("keyId", "createdAt")`;
+    results.push('index ✓');
 
     return Response.json({ ok: true, tables: results });
   } catch (err) {
