@@ -44,9 +44,8 @@ export async function POST(req: Request) {
   let userId: string | null;
   try {
     userId = await validateApiKey(rawKey);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return Response.json({ error: 'Service temporarily unavailable', _debug: msg }, { status: 503, headers });
+  } catch {
+    return Response.json({ error: 'Service temporarily unavailable' }, { status: 503, headers });
   }
   if (!userId) {
     return Response.json({ error: 'Invalid or expired API key' }, { status: 401, headers });
