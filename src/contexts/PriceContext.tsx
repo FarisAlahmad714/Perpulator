@@ -18,6 +18,7 @@ interface PriceContextType {
   isConnected: boolean;
   error: string | null;
   trackSymbol: (symbol: string) => void;
+  fetchPrices: () => Promise<void>;
   retry: () => void;
   failedAttempts: number;
   lastError: Error | null;
@@ -159,10 +160,11 @@ export function PriceProvider({ children }: { children: ReactNode }) {
     isConnected,
     error,
     trackSymbol,
+    fetchPrices,
     retry,
     failedAttempts,
     lastError,
-  }), [prices, getPrice, isConnected, error, trackSymbol, retry, failedAttempts, lastError]);
+  }), [prices, getPrice, isConnected, error, trackSymbol, fetchPrices, retry, failedAttempts, lastError]);
 
   return (
     <PriceContext.Provider value={value}>
@@ -180,21 +182,12 @@ export function usePriceContext() {
 }
 
 export function usePrice(symbol: string) {
-  const { prices, isConnected, error, trackSymbol } = usePriceContext();
-  const [price, setPrice] = useState<LivePrice | null>(null);
+  const { prices, trackSymbol, fetchPrices } = usePriceContext();
 
-  // Track this symbol
   useEffect(() => {
     trackSymbol(symbol);
-  }, [symbol, trackSymbol]);
+    fetchPrices();
+  }, [symbol, trackSymbol, fetchPrices]);
 
-  // Update when prices change
-  useEffect(() => {
-    const currentPrice = prices.get(symbol);
-    if (currentPrice) {
-      setPrice(currentPrice);
-    }
-  }, [symbol, prices]);
-
-  return price;
+  return prices.get(symbol) ?? null;
 }
