@@ -18,7 +18,7 @@ interface PriceContextType {
   isConnected: boolean;
   error: string | null;
   trackSymbol: (symbol: string) => void;
-  fetchPrices: () => Promise<void>;
+  fetchPrices: (force?: boolean) => Promise<void>;
   retry: () => void;
   failedAttempts: number;
   lastError: Error | null;
@@ -46,15 +46,15 @@ export function PriceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Main fetch function with enhanced error handling
-  const fetchPrices = useCallback(async () => {
+  const fetchPrices = useCallback(async (force = false) => {
     const symbols = Array.from(trackedSymbolsRef.current);
 
     if (symbols.length === 0) return;
 
-    // Respect backoff - don't fetch if interval hasn't passed
+    // Respect backoff - don't fetch if interval hasn't passed (unless forced)
     const now = Date.now();
     const minInterval = POLLING_INTERVAL * backoffMultiplierRef.current;
-    if (now - lastFetchTimeRef.current < minInterval) {
+    if (!force && now - lastFetchTimeRef.current < minInterval) {
       return;
     }
     lastFetchTimeRef.current = now;
@@ -183,11 +183,16 @@ export function usePriceContext() {
 
 export function usePrice(symbol: string) {
   const { prices, trackSymbol, fetchPrices } = usePriceContext();
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     trackSymbol(symbol);
-    fetchPrices();
-  }, [symbol, trackSymbol, fetchPrices]);
+    if (!prices.has(symbol)) {
+      setLoading(true);
+      fetchPrices(true).finally(() => setLoading(false));
+    }
+  }, [symbol]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return prices.get(symbol) ?? null;
+  const price = prices.get(symbol) ?? null;
+  return { price, loading: loading && !price };
 }

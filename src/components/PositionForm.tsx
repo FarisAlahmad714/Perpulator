@@ -6,7 +6,7 @@ import { getSupportedCryptos } from '@/lib/cryptoApi';
 import { usePrice } from '@/contexts/PriceContext';
 import { validatePositionInput, getErrorMessage, ValidationError } from '@/utils/validation';
 import { trackPositionCalculated } from '@/lib/analytics';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown, Loader2 } from 'lucide-react';
 
 interface PositionFormProps {
   onSubmit: (position: Position) => void;
@@ -25,7 +25,7 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
   const [useCoinsInput, setUseCoinsInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const livePrice = usePrice(symbol);
+  const { price: livePrice, loading: priceLoading } = usePrice(symbol);
   const supportedCryptos = getSupportedCryptos();
 
   // Convert between USD and coins
@@ -128,19 +128,26 @@ export default function PositionForm({ onSubmit }: PositionFormProps) {
       </div>
 
       {/* Live Price Display */}
-      {livePrice?.price && (
-        <div className="mb-16 sm:mb-20 pb-12 border-b border-slate-700/50">
-          <p className="text-label mb-2">Current Market Price</p>
-          <p className="text-4xl sm:text-5xl font-700 text-neutral animate-fade-in-up">
-            ${livePrice.price.toLocaleString('en-US', { maximumFractionDigits: 2 })}
-          </p>
-          {livePrice.change24h !== 0 && (
-            <p className={`text-sm mt-4 ${livePrice.change24h >= 0 ? 'text-profit' : 'text-loss'}`}>
-              24h: {livePrice.change24h.toFixed(2)}%
+      <div className="mb-16 sm:mb-20 pb-12 border-b border-slate-700/50">
+        <p className="text-label mb-2">Current Market Price</p>
+        {priceLoading ? (
+          <div className="flex items-center gap-2 text-gray-500">
+            <Loader2 size={18} className="animate-spin text-neutral" />
+            <span className="text-sm">Fetching {symbol} price…</span>
+          </div>
+        ) : livePrice?.price ? (
+          <>
+            <p className="text-4xl sm:text-5xl font-700 text-neutral animate-fade-in-up">
+              ${livePrice.price.toLocaleString('en-US', { maximumFractionDigits: 2 })}
             </p>
-          )}
-        </div>
-      )}
+            {livePrice.change24h !== 0 && (
+              <p className={`text-sm mt-4 ${livePrice.change24h >= 0 ? 'text-profit' : 'text-loss'}`}>
+                24h: {livePrice.change24h.toFixed(2)}%
+              </p>
+            )}
+          </>
+        ) : null}
+      </div>
 
       {/* Entry Price */}
       <div className="mb-16 sm:mb-20">

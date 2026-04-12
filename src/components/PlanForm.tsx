@@ -29,7 +29,7 @@ export default function PlanForm({ onSubmit }: PlanFormProps) {
   const [timeUnit, setTimeUnit] = useState<TimeUnit>('days');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const livePrice = usePrice(symbol);
+  const { price: livePrice } = usePrice(symbol);
   const supportedCryptos = getSupportedCryptos();
 
   const validate = () => {

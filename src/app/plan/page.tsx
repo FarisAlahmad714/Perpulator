@@ -17,7 +17,7 @@ export default function PlanPage() {
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>([]);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
-  const livePrice = usePrice(planValues?.symbol ?? 'BTC');
+  const { price: livePrice } = usePrice(planValues?.symbol ?? 'BTC');
   const { savePlan, loadSavedPlans, deletePlan, isMounted } = usePlanStorage();
 
   useEffect(() => {

@@ -40,7 +40,7 @@ export default function PositionAdjustment({ position, onPositionUpdate, onReset
   const [takeProfitPrice, setTakeProfitPrice] = useState(position.takeProfit ? String(position.takeProfit) : '');
   const [editingEntry, setEditingEntry] = useState<EditingEntry | null>(null);
 
-  const livePrice = usePrice(position.symbol);
+  const { price: livePrice } = usePrice(position.symbol);
 
   // Calculate total position from all entries
   // IMPORTANT: Only open entries (initial + add) count toward current position
