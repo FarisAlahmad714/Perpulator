@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { signIn } from 'next-auth/react';
 import NavToggle from '@/components/NavToggle';
 import PositionForm from '@/components/PositionForm';
@@ -26,10 +26,13 @@ export default function Home() {
     savePosition,
     loadSavedPositions,
     deletePosition,
+    clearAll,
     refreshFromCloud,
     isMounted,
     isAuthenticated,
   } = usePositionStorage();
+
+  const prevAuthRef = useRef<boolean | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -45,14 +48,26 @@ export default function Home() {
     }
   }, [isMounted, loadActivePosition, loadSavedPositions]);
 
-  // When user signs in, pull their positions from DB and merge into the UI
+  // Sign in → pull from DB. Sign out → clear local state.
   useEffect(() => {
-    if (!isAuthenticated || !isMounted) return;
-    refreshFromCloud().then((cloudPositions) => {
-      if (cloudPositions && cloudPositions.length > 0) {
-        setSavedPositions(cloudPositions);
-      }
-    });
+    if (!isMounted) return;
+    const prev = prevAuthRef.current;
+    prevAuthRef.current = isAuthenticated;
+
+    if (isAuthenticated) {
+      refreshFromCloud().then((cloudPositions) => {
+        if (cloudPositions && cloudPositions.length > 0) {
+          setSavedPositions(cloudPositions);
+        }
+      });
+    } else if (prev === true) {
+      // Transitioned from signed-in → signed-out: clear everything
+      clearAll();
+      setPosition(null);
+      setShowAdjustment(false);
+      setSavedPositions([]);
+      setIsSaved(false);
+    }
   }, [isAuthenticated, isMounted]);
 
   const handlePositionSubmit = (newPosition: Position) => {
