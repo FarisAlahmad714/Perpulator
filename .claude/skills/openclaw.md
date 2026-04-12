@@ -13,83 +13,80 @@ echo $PERPULATOR_API_KEY
 
 If it is empty or unset, tell the user:
 > "No API key found. Set it with: `export PERPULATOR_API_KEY=perp_...`
-> You can generate one at https://perpulator.vercel.app (sign in → API Keys)"
+> You can generate one at https://perpulator.vercel.app/settings (sign in → create a key)"
 
 Stop here if no key is available.
 
 ## Step 2 — Parse position parameters
 
-Extract the following from the user's message (all required unless marked optional):
+Extract the following from the user's message:
 
-| Parameter | Description | Example |
-|-----------|-------------|---------|
-| `symbol` | Asset ticker | `BTC`, `ETH`, `SOL` |
-| `side` | Direction | `long` or `short` |
-| `entryPrice` | Entry price in USD | `71000` |
-| `positionSize` | Margin in USD (not notional) | `1000` |
-| `leverage` | Multiplier | `10` |
-| `stopLoss` | Stop loss price *(optional)* | `65000` |
-| `takeProfit` | Take profit price *(optional)* | `80000` |
-| `currentPrice` | Current market price for live PnL *(optional)* | `71500` |
+| Parameter | Required | Description | Example |
+|-----------|----------|-------------|---------|
+| `symbol` | Yes | Asset ticker | `BTC`, `ETH`, `SOL` |
+| `side` | Yes | Direction | `long` or `short` |
+| `entryPrice` | Yes | Entry price in USD | `71000` |
+| `positionSize` | Yes | Margin in USD (not notional) | `1000` |
+| `leverage` | Yes | Multiplier (1–125) | `10` |
+| `stopLoss` | Optional | Stop loss price | `65000` |
+| `takeProfit` | Optional | Take profit price | `80000` |
+| `currentPrice` | Optional | Current market price for live PnL | `71500` |
+
+Accept flexible input formats:
+- Leverage: `10`, `10x`, `10X` → always convert to number `10`
+- Side: `long`, `LONG`, `buy` → `"long"` | `short`, `SHORT`, `sell` → `"short"`
+- SL/TP labels: `SL:`, `stop:`, `sl`, `stop loss` → `stopLoss` | `TP:`, `target:`, `tp`, `take profit` → `takeProfit`
 
 If any required parameter is missing, ask the user for it before proceeding.
 
 ## Step 3 — Call the Perpulator API
 
-Use the Bash tool to POST to the calculate endpoint:
+Build and execute the curl command with real values substituted (no placeholders). Example for BTC long at 71000, size 1000, 10x, SL 65000, TP 82000:
 
 ```bash
 curl -s -X POST https://perpulator.vercel.app/api/v1/calculate \
   -H "Authorization: Bearer $PERPULATOR_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "symbol": "<SYMBOL>",
-    "side": "<SIDE>",
-    "entryPrice": <ENTRY_PRICE>,
-    "positionSize": <POSITION_SIZE>,
-    "leverage": <LEVERAGE>,
-    "stopLoss": <STOP_LOSS_OR_OMIT>,
-    "takeProfit": <TAKE_PROFIT_OR_OMIT>,
-    "currentPrice": <CURRENT_PRICE_OR_OMIT>
-  }'
+  -d '{"symbol":"BTC","side":"long","entryPrice":71000,"positionSize":1000,"leverage":10,"stopLoss":65000,"takeProfit":82000}'
 ```
 
-Omit optional fields that were not provided.
+Omit `stopLoss`, `takeProfit`, and `currentPrice` from the JSON if the user didn't provide them.
 
 ## Step 4 — Format the result
 
-Present the response as a clean analysis. Use this format:
+Parse the JSON response and present a clean analysis:
 
 ---
 
-**⚡ OpenClaw Analysis — {SYMBOL} {SIDE.toUpperCase()}**
+**OpenClaw Analysis — {SYMBOL} {SIDE}**
 
-| Field | Value |
-|-------|-------|
-| Entry Price | ${entryPrice} |
-| Position Size (margin) | ${positionSize} |
-| Leverage | {leverage}x |
-| Notional Size | ${notionalSize} |
-| Liquidation Price | ${liquidationPrice} ⚠️ |
-| Stop Loss | ${stopLoss} (if set) |
-| Take Profit | ${takeProfit} (if set) |
-| Risk Amount | ${riskAmount} (if set) |
-| Reward Amount | ${rewardAmount} (if set) |
-| Risk/Reward Ratio | {riskRewardRatio}:1 (if set) |
-| Current PnL | ${pnl} ({pnlPercentage}%) (if currentPrice set) |
+| | |
+|---|---|
+| Entry Price | `${entryPrice}` |
+| Margin | `${positionSize}` |
+| Leverage | `{leverage}x` |
+| Notional Size | `${notionalSize}` |
+| Liquidation Price | `${liquidationPrice}` |
+| Stop Loss | `${stopLoss}` *(if provided)* |
+| Take Profit | `${takeProfit}` *(if provided)* |
+| Risk Amount | `${riskAmount}` *(if SL set)* |
+| Reward Amount | `${rewardAmount}` *(if TP set)* |
+| Risk/Reward | `{riskRewardRatio}:1` *(if both set)* |
+| Current PnL | `${pnl} ({pnlPercentage}%)` *(if currentPrice set)* |
 
-Then add a one-sentence risk note, e.g.:
-> "At {leverage}x leverage, a {pct}% move against your position triggers liquidation."
-> (Calculate pct as `(|entryPrice - liquidationPrice| / entryPrice) * 100`, rounded to 2 decimal places)
+Then add a one-sentence risk note:
+> "At {leverage}x leverage, a {pct}% adverse move triggers liquidation."
+> (pct = `|(entryPrice - liquidationPrice) / entryPrice * 100|`, rounded to 2 decimal places)
 
 ---
 
-If the API returns an error, show the error message clearly and suggest how to fix it (e.g., "stopLoss must be below entryPrice for a LONG").
+If the API returns an error, show the error message clearly and suggest how to fix it.
 
-## Examples of valid invocations
+## Valid invocation examples
 
 ```
-/openclaw BTC long entry 71000 size 1000 leverage 10 SL 65000 TP 82000
+/openclaw BTC long 71000 1000 10x SL:65000 TP:82000
 /openclaw ETH short 3200 500 5x stop 3400 target 2800 current 3180
 /openclaw SOL long 145 200 20x
+/openclaw analyze my BTC long: entry 71000, size $1000, 10x leverage, stop at 65000
 ```
