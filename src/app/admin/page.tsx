@@ -130,7 +130,7 @@ function StatusDot({ status }: { status: number }) {
 function SourceBadge({ r }: { r: RecentActivity }) {
   // Definitive signals first
   if (r.clientName) {
-    const label = r.clientName.toLowerCase().includes('openclaw') ? 'OpenClaw' : r.clientName;
+    const label = r.clientName.toLowerCase().includes('perpulator') ? 'Perpulator Skill' : r.clientName;
     return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'rgba(0,212,255,0.10)', color: '#00d4ff' }}>{label}</span>;
   }
   if (r.origin) {

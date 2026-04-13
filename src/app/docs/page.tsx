@@ -404,23 +404,31 @@ export default function DocsPage() {
             ))}
           </div>
 
-          {/* OpenClaw */}
+          {/* Claude Code Skill */}
           <div className="mt-16 pt-10 border-t border-gray-800/50">
             <div
               className="rounded-xl p-5 space-y-4"
               style={{ backgroundColor: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.12)' }}
             >
-              <p className="text-xs font-600 text-neutral uppercase tracking-widest">OpenClaw — Claude Code Skill</p>
+              <p className="text-xs font-600 text-neutral uppercase tracking-widest">Perpulator — Claude Code Skill</p>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Run position analysis directly inside Claude Code with <code className="text-neutral font-mono">/openclaw</code>. No browser required.
+                Run position analysis directly inside Claude Code with <code className="text-neutral font-mono">/perpulator</code>. Available on{' '}
+                <a href="https://clawhub.ai" target="_blank" rel="noopener noreferrer" className="text-neutral hover:underline">ClawHub</a>{' '}
+                or install manually. No browser required.
               </p>
               <CodeBlock
-                code={`# Install once
-cp .claude/skills/openclaw.md ~/.claude/skills/
+                code={`# Install via ClawHub (recommended)
+openclaw skills install perpulator
+
+# Or install manually
+curl -o ~/.claude/skills/perpulator.md \\
+  https://raw.githubusercontent.com/FarisAlahmad714/Perpulator/main/.claude/skills/perpulator.md
+
+# Set your API key
 export PERPULATOR_API_KEY=perp_...
 
 # Use anywhere in Claude Code
-/openclaw BTC long 71000 1000 10x SL:65000 TP:82000`}
+/perpulator BTC long 71000 1000 10x SL:65000 TP:82000`}
                 language="bash"
               />
             </div>

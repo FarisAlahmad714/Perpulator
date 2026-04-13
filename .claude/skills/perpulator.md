@@ -1,8 +1,20 @@
 ---
-description: Analyze a perpetual futures position using the Perpulator API. Calculates liquidation price, risk/reward, PnL, and more.
+name: perpulator
+description: Analyze perpetual futures positions directly in Claude Code — liquidation price, risk/reward, PnL, and probability-based trade plans. Powered by Perpulator.
+version: 1.0.0
+metadata:
+  openclaw:
+    requires:
+      env:
+        - PERPULATOR_API_KEY
+      bins:
+        - curl
+    primaryEnv: PERPULATOR_API_KEY
+    emoji: "📊"
+    homepage: https://perpulator.vercel.app
 ---
 
-You are running the **OpenClaw** skill — a perpetual futures position analyzer powered by the Perpulator API.
+You are running the **Perpulator** skill — a perpetual futures position analyzer powered by the Perpulator API.
 
 ## Step 1 — Get the API key
 
@@ -13,7 +25,7 @@ echo $PERPULATOR_API_KEY
 
 If it is empty or unset, tell the user:
 > "No API key found. Set it with: `export PERPULATOR_API_KEY=perp_...`
-> You can generate one at https://perpulator.vercel.app/settings (sign in → create a key)"
+> Generate one free at https://perpulator.vercel.app/settings (sign in → create a key)"
 
 Stop here if no key is available.
 
@@ -41,13 +53,15 @@ If any required parameter is missing, ask the user for it before proceeding.
 
 ## Step 3 — Call the Perpulator API
 
-Build and execute the curl command with real values substituted (no placeholders). Always include `X-Perpulator-Client: openclaw/1.0` so the server can identify this as an OpenClaw request. Example for BTC long at 71000, size 1000, 10x, SL 65000, TP 82000:
+Build and execute the curl command with real values substituted (no placeholders). Always include `X-Perpulator-Client: perpulator/1.0` so the server can identify this as a Perpulator skill request.
+
+Example for BTC long at 71000, size 1000, 10x, SL 65000, TP 82000:
 
 ```bash
 curl -s -X POST https://perpulator.vercel.app/api/v1/calculate \
   -H "Authorization: Bearer $PERPULATOR_API_KEY" \
   -H "Content-Type: application/json" \
-  -H "X-Perpulator-Client: openclaw/1.0" \
+  -H "X-Perpulator-Client: perpulator/1.0" \
   -d '{"symbol":"BTC","side":"long","entryPrice":71000,"positionSize":1000,"leverage":10,"stopLoss":65000,"takeProfit":82000}'
 ```
 
@@ -59,7 +73,7 @@ Parse the JSON response and present a clean analysis:
 
 ---
 
-**OpenClaw Analysis — {SYMBOL} {SIDE}**
+**Perpulator Analysis — {SYMBOL} {SIDE}**
 
 | | |
 |---|---|
@@ -86,8 +100,8 @@ If the API returns an error, show the error message clearly and suggest how to f
 ## Valid invocation examples
 
 ```
-/openclaw BTC long 71000 1000 10x SL:65000 TP:82000
-/openclaw ETH short 3200 500 5x stop 3400 target 2800 current 3180
-/openclaw SOL long 145 200 20x
-/openclaw analyze my BTC long: entry 71000, size $1000, 10x leverage, stop at 65000
+/perpulator BTC long 71000 1000 10x SL:65000 TP:82000
+/perpulator ETH short 3200 500 5x stop 3400 target 2800 current 3180
+/perpulator SOL long 145 200 20x
+/perpulator analyze my BTC long: entry 71000, size $1000, 10x leverage, stop at 65000
 ```

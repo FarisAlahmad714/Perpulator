@@ -462,19 +462,20 @@ export default function SettingsPage() {
               className="rounded-xl p-4 space-y-3"
               style={{ backgroundColor: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.12)' }}
             >
-              <p className="text-xs text-neutral font-600 uppercase tracking-widest">OpenClaw — Claude Code Skill</p>
+              <p className="text-xs text-neutral font-600 uppercase tracking-widest">Perpulator — Claude Code Skill</p>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Run position analysis directly in Claude Code with <code className="text-neutral font-mono">/openclaw</code>.
+                Run position analysis directly in Claude Code with <code className="text-neutral font-mono">/perpulator</code>. Install via ClawHub or manually.
               </p>
               <div
                 className="rounded-lg p-3 font-mono text-xs text-gray-300 space-y-1 overflow-x-auto"
                 style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
               >
-                <div><span className="text-gray-500"># Install once</span></div>
-                <div>cp .claude/skills/openclaw.md ~/.claude/skills/</div>
+                <div><span className="text-gray-500"># Install via ClawHub</span></div>
+                <div>openclaw skills install perpulator</div>
+                <div className="pt-1"><span className="text-gray-500"># Set your API key</span></div>
                 <div>export PERPULATOR_API_KEY=perp_...</div>
-                <div className="pt-1"><span className="text-gray-500"># Use anywhere</span></div>
-                <div className="text-neutral">/openclaw BTC long 71000 1000 10x SL:65000 TP:82000</div>
+                <div className="pt-1"><span className="text-gray-500"># Use anywhere in Claude Code</span></div>
+                <div className="text-neutral">/perpulator BTC long 71000 1000 10x SL:65000 TP:82000</div>
               </div>
             </div>
           </div>
