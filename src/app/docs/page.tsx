@@ -425,6 +425,13 @@ export PERPULATOR_API_KEY=perp_...
               />
             </div>
           </div>
+
+          {/* Footer */}
+          <div className="mt-16 pt-6 border-t border-gray-800/50 flex gap-6">
+            <a href="/terms" className="text-xs text-gray-500 hover:text-neutral transition-colors">Terms of Service</a>
+            <a href="/privacy" className="text-xs text-gray-500 hover:text-neutral transition-colors">Privacy Policy</a>
+            <a href="/" className="text-xs text-gray-500 hover:text-neutral transition-colors">Back to App</a>
+          </div>
         </div>
       </div>
     </>

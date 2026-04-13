@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import { Key, Trash2, Plus, Copy, Check, AlertTriangle, X, Terminal, Loader2, Activity } from 'lucide-react';
+import { Key, Trash2, Plus, Copy, Check, AlertTriangle, X, Terminal, Loader2 } from 'lucide-react';
 import NavToggle from '@/components/NavToggle';
 import AuthButton from '@/components/AuthButton';
 import PriceIndicator from '@/components/PriceIndicator';
@@ -19,12 +19,6 @@ interface CreatedKey extends ApiKey {
   key: string;
 }
 
-interface UsageData {
-  hourlyUsed: number;
-  hourlyLimit: number;
-  dailyUsage: { date: string; count: number }[];
-}
-
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return 'Never';
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -34,146 +28,34 @@ function formatDate(dateStr: string | null): string {
   });
 }
 
-function formatDay(dateStr: string): string {
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' });
-}
-
-// ── Mini usage bar chart ───────────────────────────────────────────────────────
-function UsageChart({ usage }: { usage: UsageData }) {
-  const max = Math.max(...usage.dailyUsage.map((d) => d.count), 1);
-  const pct = usage.hourlyLimit > 0 ? (usage.hourlyUsed / usage.hourlyLimit) * 100 : 0;
-  const barColor = pct >= 90 ? '#f87171' : pct >= 60 ? '#fbbf24' : '#00d4ff';
-
-  return (
-    <div className="space-y-4 pt-3 pb-1">
-      {/* Rate limit bar */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">This hour</span>
-          <span className="text-xs font-600 font-mono" style={{ color: barColor }}>
-            {usage.hourlyUsed} / {usage.hourlyLimit}
-          </span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
-          />
-        </div>
-      </div>
-
-      {/* 7-day chart */}
-      <div className="space-y-1.5">
-        <span className="text-xs text-gray-500">Last 7 days</span>
-        <div className="flex items-end gap-1 h-12">
-          {usage.dailyUsage.map((d) => {
-            const h = max > 0 ? Math.max((d.count / max) * 100, d.count > 0 ? 8 : 4) : 4;
-            return (
-              <div key={d.date} className="flex-1 flex flex-col items-center gap-1 group relative">
-                <div
-                  className="w-full rounded-sm transition-all"
-                  style={{
-                    height: `${h}%`,
-                    minHeight: '3px',
-                    backgroundColor: d.count > 0 ? 'rgba(0,212,255,0.5)' : 'rgba(255,255,255,0.06)',
-                  }}
-                />
-                {/* Tooltip on hover */}
-                <div className="absolute -top-7 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-800 text-white text-xs rounded px-1.5 py-0.5 whitespace-nowrap z-10">
-                  {d.count} req
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex gap-1">
-          {usage.dailyUsage.map((d) => (
-            <div key={d.date} className="flex-1 text-center text-gray-700 text-[9px]">
-              {formatDay(d.date)}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Key row with inline usage ──────────────────────────────────────────────────
+// ── Key row ────────────────────────────────────────────────────────────────────
 function KeyRow({ k, onDelete }: { k: ApiKey; onDelete: (k: ApiKey) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const [usage, setUsage] = useState<UsageData | null>(null);
-  const [loadingUsage, setLoadingUsage] = useState(false);
-
-  const fetchUsage = useCallback(async () => {
-    if (usage) return; // already loaded
-    setLoadingUsage(true);
-    try {
-      const res = await fetch(`/api/keys/${k.id}/usage`);
-      if (res.ok) setUsage(await res.json());
-    } finally {
-      setLoadingUsage(false);
-    }
-  }, [k.id, usage]);
-
-  const handleExpand = () => {
-    const next = !expanded;
-    setExpanded(next);
-    if (next) fetchUsage();
-  };
-
   return (
     <div
-      className="rounded-xl overflow-hidden"
+      className="flex items-center gap-3 px-4 py-3 rounded-xl"
       style={{ backgroundColor: '#0F1535', border: '1px solid rgba(148,163,184,0.10)' }}
     >
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-white font-600 truncate">{k.name}</p>
-            <span
-              className="shrink-0 text-xs font-600 px-1.5 py-0.5 rounded"
-              style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00d4ff' }}
-            >
-              {k.totalRequests.toLocaleString()} req
-            </span>
-          </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Created {formatDate(k.createdAt)}
-            {k.lastUsedAt
-              ? <span className="ml-2 text-gray-600">· Last used {formatDate(k.lastUsedAt)}</span>
-              : <span className="ml-2 text-gray-700">· Never used</span>}
-          </p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-white font-600 truncate">{k.name}</p>
+          <span className="shrink-0 text-xs font-600 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00d4ff' }}>
+            {k.totalRequests.toLocaleString()} req
+          </span>
         </div>
-        <button
-          onClick={handleExpand}
-          className="shrink-0 p-2 rounded-lg text-gray-600 hover:text-neutral hover:bg-neutral/10 transition-all"
-          title="Usage stats"
-        >
-          <Activity size={14} />
-        </button>
-        <button
-          onClick={() => onDelete(k)}
-          className="shrink-0 p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-          title="Revoke key"
-        >
-          <Trash2 size={14} />
-        </button>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Created {formatDate(k.createdAt)}
+          {k.lastUsedAt
+            ? <span className="ml-2 text-gray-600">· Last used {formatDate(k.lastUsedAt)}</span>
+            : <span className="ml-2 text-gray-700">· Never used</span>}
+        </p>
       </div>
-
-      {expanded && (
-        <div className="px-4 pb-4 border-t border-white/5">
-          {loadingUsage ? (
-            <div className="flex items-center gap-2 pt-4">
-              <Loader2 size={12} className="animate-spin text-neutral" />
-              <span className="text-xs text-gray-500">Loading usage…</span>
-            </div>
-          ) : usage ? (
-            <UsageChart usage={usage} />
-          ) : (
-            <p className="text-xs text-gray-600 pt-3">Failed to load usage data.</p>
-          )}
-        </div>
-      )}
+      <button
+        onClick={() => onDelete(k)}
+        className="shrink-0 p-2 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+        title="Revoke key"
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   );
 }
@@ -439,8 +321,7 @@ export default function SettingsPage() {
                   API Keys ({keys.length}/5)
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Use these keys to call the Perpulator API or run the OpenClaw skill. Click{' '}
-                  <Activity size={11} className="inline" /> to see usage stats.
+                  Use these keys to call the Perpulator API or run the OpenClaw skill.
                 </p>
               </div>
               {!showCreateForm && keys.length < 5 && (
