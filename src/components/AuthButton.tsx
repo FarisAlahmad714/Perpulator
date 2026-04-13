@@ -41,7 +41,7 @@ export default function AuthButton() {
 
   return (
     <button
-      onClick={() => signIn()}
+      onClick={() => signIn('github')}
       className="flex items-center gap-2 text-xs font-600 px-3 py-1.5 rounded-lg bg-neutral/10 border border-neutral/30 text-neutral hover:bg-neutral/20 hover:border-neutral/50 transition-all"
     >
       <LogIn size={13} />
