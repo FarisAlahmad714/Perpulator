@@ -76,6 +76,11 @@ export const apiRequestLogs = pgTable(
     userId: text('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
     endpoint: text('endpoint').notNull(),
     status: integer('status').notNull(),
+    userAgent: text('userAgent'),
+    clientName: text('clientName'),   // X-Perpulator-Client header (e.g. "openclaw/1.0")
+    origin: text('origin'),            // Origin header — present means web app
+    ip: text('ip'),                    // x-forwarded-for first IP
+    country: text('country'),          // x-vercel-ip-country (free, injected by Vercel)
     createdAt: timestamp('createdAt', { mode: 'date' }).notNull().defaultNow(),
   },
   (t) => ({ keyCreatedIdx: index('idx_logs_key_created').on(t.keyId, t.createdAt) })

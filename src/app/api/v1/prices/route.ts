@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest, extractRequestMeta } from '@/lib/apiKey';
 
 function corsHeaders() {
   return {
@@ -36,17 +36,18 @@ export async function GET(req: Request) {
   }
 
   const { userId, keyId } = result;
+  const meta = extractRequestMeta(req);
 
   const { searchParams } = new URL(req.url);
   const rawSymbols = searchParams.get('symbols')?.split(',').map((s) => s.toUpperCase().trim()).filter(Boolean) ?? [];
 
   if (rawSymbols.length === 0) {
-    logApiRequest(keyId, userId, '/api/v1/prices', 400);
+    logApiRequest(keyId, userId, '/api/v1/prices', 400, meta);
     return Response.json({ error: 'Provide at least one symbol: ?symbols=BTC,ETH' }, { status: 400, headers });
   }
 
   if (rawSymbols.length > 10) {
-    logApiRequest(keyId, userId, '/api/v1/prices', 400);
+    logApiRequest(keyId, userId, '/api/v1/prices', 400, meta);
     return Response.json({ error: 'Maximum 10 symbols per request' }, { status: 400, headers });
   }
 
@@ -59,11 +60,11 @@ export async function GET(req: Request) {
     if (!res.ok) throw new Error(`Internal price fetch failed: ${res.status}`);
     const data = await res.json();
 
-    logApiRequest(keyId, userId, '/api/v1/prices', 200);
+    logApiRequest(keyId, userId, '/api/v1/prices', 200, meta);
     return Response.json(data, { headers });
   } catch (err: any) {
     console.error('v1/prices error:', err.message);
-    logApiRequest(keyId, userId, '/api/v1/prices', 502);
+    logApiRequest(keyId, userId, '/api/v1/prices', 502, meta);
     return Response.json({ error: 'Failed to fetch prices' }, { status: 502, headers });
   }
 }

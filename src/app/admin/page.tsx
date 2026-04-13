@@ -34,6 +34,11 @@ interface RecentActivity {
   createdAt: string;
   keyId: string;
   userEmail: string | null;
+  userAgent: string | null;
+  clientName: string | null;
+  origin: string | null;
+  ip: string | null;
+  country: string | null;
 }
 
 interface AdminData {
@@ -120,6 +125,24 @@ function GlobalChart({ dailyUsage }: { dailyUsage: DailyUsage[] }) {
 function StatusDot({ status }: { status: number }) {
   const color = status < 300 ? '#4ade80' : status < 500 ? '#fbbf24' : '#f87171';
   return <span className="w-1.5 h-1.5 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: color }} />;
+}
+
+function SourceBadge({ r }: { r: RecentActivity }) {
+  // Definitive signals first
+  if (r.clientName) {
+    const label = r.clientName.toLowerCase().includes('openclaw') ? 'OpenClaw' : r.clientName;
+    return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'rgba(0,212,255,0.10)', color: '#00d4ff' }}>{label}</span>;
+  }
+  if (r.origin) {
+    const domain = (() => { try { return new URL(r.origin).hostname; } catch { return r.origin; } })();
+    return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>app · {domain}</span>;
+  }
+  // Hint from user-agent only
+  const ua = (r.userAgent ?? '').toLowerCase();
+  if (ua.includes('python')) return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'rgba(251,191,36,0.10)', color: '#fbbf24' }}>python</span>;
+  if (ua.includes('node') || ua.includes('axios') || ua.includes('got') || ua.includes('fetch')) return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0" style={{ backgroundColor: 'rgba(251,191,36,0.10)', color: '#fbbf24' }}>node</span>;
+  if (ua.includes('curl')) return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0 text-gray-600">curl</span>;
+  return <span className="text-[10px] font-600 px-1.5 py-0.5 rounded shrink-0 text-gray-700">unknown</span>;
 }
 
 // ── Key breakdown row ──────────────────────────────────────────────────────────
@@ -392,13 +415,15 @@ export default function AdminPage() {
               ) : (
                 <div className="divide-y divide-white/5">
                   {recentActivity.map((r) => (
-                    <div key={r.id} className="flex items-start gap-3 px-4 py-2.5" style={{ backgroundColor: '#0A0F2E' }}>
+                    <div key={r.id} className="flex items-center gap-2 px-4 py-2.5" style={{ backgroundColor: '#0A0F2E' }}>
                       <StatusDot status={r.status} />
-                      <code className="text-xs text-gray-300 font-mono flex-1 truncate">{shortEndpoint(r.endpoint)}</code>
+                      <code className="text-xs text-gray-300 font-mono flex-1 min-w-0 truncate">{shortEndpoint(r.endpoint)}</code>
                       <span className="text-xs font-600 font-mono shrink-0" style={{
                         color: r.status < 300 ? '#4ade80' : r.status < 500 ? '#fbbf24' : '#f87171'
                       }}>{r.status}</span>
-                      <span className="text-xs text-gray-600 shrink-0 hidden sm:block truncate max-w-[150px]">{r.userEmail}</span>
+                      <SourceBadge r={r} />
+                      {r.country && <span className="text-[10px] text-gray-600 shrink-0">{r.country}</span>}
+                      <span className="text-xs text-gray-600 shrink-0 hidden md:block truncate max-w-[130px]">{r.userEmail}</span>
                       <span className="text-xs text-gray-700 shrink-0 hidden sm:block">{formatTime(r.createdAt)}</span>
                     </div>
                   ))}

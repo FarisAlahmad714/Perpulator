@@ -61,14 +61,41 @@ export async function validateApiKey(
  * Log a completed API request and update usage counters.
  * Call this after the response is determined (fire-and-forget).
  */
+export interface RequestMeta {
+  userAgent?: string | null;
+  clientName?: string | null;  // X-Perpulator-Client
+  origin?: string | null;       // Origin header
+  ip?: string | null;           // x-forwarded-for
+  country?: string | null;      // x-vercel-ip-country
+}
+
+/** Extract all tracking metadata from a request in one call */
+export function extractRequestMeta(req: Request): RequestMeta {
+  return {
+    userAgent: req.headers.get('user-agent'),
+    clientName: req.headers.get('x-perpulator-client'),
+    origin: req.headers.get('origin'),
+    ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+    country: req.headers.get('x-vercel-ip-country'),
+  };
+}
+
 export function logApiRequest(
   keyId: string,
   userId: string,
   endpoint: string,
-  status: number
+  status: number,
+  meta?: RequestMeta | null
 ): void {
   Promise.all([
-    db.insert(apiRequestLogs).values({ keyId, userId, endpoint, status }).execute(),
+    db.insert(apiRequestLogs).values({
+      keyId, userId, endpoint, status,
+      userAgent: meta?.userAgent ?? null,
+      clientName: meta?.clientName ?? null,
+      origin: meta?.origin ?? null,
+      ip: meta?.ip ?? null,
+      country: meta?.country ?? null,
+    }).execute(),
     db
       .update(apiKeys)
       .set({

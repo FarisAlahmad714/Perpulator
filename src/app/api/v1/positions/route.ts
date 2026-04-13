@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest, extractRequestMeta } from '@/lib/apiKey';
 import { db } from '@/lib/db';
 import { positions } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -45,6 +45,7 @@ export async function GET(req: Request) {
   }
 
   const { userId, keyId } = result;
+  const meta = extractRequestMeta(req);
 
   const rows = await db.select().from(positions).where(eq(positions.userId, userId));
 
@@ -57,7 +58,7 @@ export async function GET(req: Request) {
     };
   });
 
-  logApiRequest(keyId, userId, '/api/v1/positions', 200);
+  logApiRequest(keyId, userId, '/api/v1/positions', 200, meta);
   return Response.json(data, { headers });
 }
 
@@ -97,12 +98,13 @@ export async function POST(req: Request) {
   }
 
   const { userId, keyId } = result;
+  const meta = extractRequestMeta(req);
 
   let body: SavePositionRequest;
   try {
     body = await req.json();
   } catch {
-    logApiRequest(keyId, userId, '/api/v1/positions', 400);
+    logApiRequest(keyId, userId, '/api/v1/positions', 400, meta);
     return Response.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
 
@@ -116,7 +118,7 @@ export async function POST(req: Request) {
   if (typeof leverage !== 'number' || leverage < 1 || leverage > 125) errors.push('leverage must be between 1 and 125');
 
   if (errors.length > 0) {
-    logApiRequest(keyId, userId, '/api/v1/positions', 422);
+    logApiRequest(keyId, userId, '/api/v1/positions', 422, meta);
     return Response.json({ error: 'Validation failed', details: errors }, { status: 422, headers });
   }
 
@@ -139,6 +141,6 @@ export async function POST(req: Request) {
 
   await db.insert(positions).values({ id, userId, data: positionData, savedAt: now, updatedAt: now });
 
-  logApiRequest(keyId, userId, '/api/v1/positions', 201);
+  logApiRequest(keyId, userId, '/api/v1/positions', 201, meta);
   return Response.json(positionData, { status: 201, headers });
 }

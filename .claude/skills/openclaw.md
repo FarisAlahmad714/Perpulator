@@ -41,12 +41,13 @@ If any required parameter is missing, ask the user for it before proceeding.
 
 ## Step 3 — Call the Perpulator API
 
-Build and execute the curl command with real values substituted (no placeholders). Example for BTC long at 71000, size 1000, 10x, SL 65000, TP 82000:
+Build and execute the curl command with real values substituted (no placeholders). Always include `X-Perpulator-Client: openclaw/1.0` so the server can identify this as an OpenClaw request. Example for BTC long at 71000, size 1000, 10x, SL 65000, TP 82000:
 
 ```bash
 curl -s -X POST https://perpulator.vercel.app/api/v1/calculate \
   -H "Authorization: Bearer $PERPULATOR_API_KEY" \
   -H "Content-Type: application/json" \
+  -H "X-Perpulator-Client: openclaw/1.0" \
   -d '{"symbol":"BTC","side":"long","entryPrice":71000,"positionSize":1000,"leverage":10,"stopLoss":65000,"takeProfit":82000}'
 ```
 

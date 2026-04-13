@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest, extractRequestMeta } from '@/lib/apiKey';
 import {
   calculateRiskAmount,
   calculateRewardAmount,
@@ -60,13 +60,14 @@ export async function POST(req: Request) {
   }
 
   const { userId, keyId } = authResult;
+  const meta = extractRequestMeta(req);
 
   // ── Parse body ──────────────────────────────────────────────────────────────
   let body: CalculateRequest;
   try {
     body = await req.json();
   } catch {
-    logApiRequest(keyId, userId, '/api/v1/calculate', 400);
+    logApiRequest(keyId, userId, '/api/v1/calculate', 400, meta);
     return Response.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
 
@@ -86,21 +87,21 @@ export async function POST(req: Request) {
   if (currentPrice !== undefined && (typeof currentPrice !== 'number' || currentPrice <= 0)) errors.push('currentPrice must be a positive number');
 
   if (errors.length > 0) {
-    logApiRequest(keyId, userId, '/api/v1/calculate', 422);
+    logApiRequest(keyId, userId, '/api/v1/calculate', 422, meta);
     return Response.json({ error: 'Validation failed', details: errors }, { status: 422, headers });
   }
 
   // ── Directional SL/TP sanity checks ─────────────────────────────────────────
   if (stopLoss !== undefined) {
     if (side === 'long' && stopLoss >= entryPrice) {
-      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422, meta);
       return Response.json(
         { error: 'For a LONG position, stopLoss must be below entryPrice' },
         { status: 422, headers }
       );
     }
     if (side === 'short' && stopLoss <= entryPrice) {
-      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422, meta);
       return Response.json(
         { error: 'For a SHORT position, stopLoss must be above entryPrice' },
         { status: 422, headers }
@@ -109,14 +110,14 @@ export async function POST(req: Request) {
   }
   if (takeProfit !== undefined) {
     if (side === 'long' && takeProfit <= entryPrice) {
-      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422, meta);
       return Response.json(
         { error: 'For a LONG position, takeProfit must be above entryPrice' },
         { status: 422, headers }
       );
     }
     if (side === 'short' && takeProfit >= entryPrice) {
-      logApiRequest(keyId, userId, '/api/v1/calculate', 422);
+      logApiRequest(keyId, userId, '/api/v1/calculate', 422, meta);
       return Response.json(
         { error: 'For a SHORT position, takeProfit must be below entryPrice' },
         { status: 422, headers }
@@ -142,7 +143,7 @@ export async function POST(req: Request) {
     pnlPercentage = result.pnlPercentage;
   }
 
-  logApiRequest(keyId, userId, '/api/v1/calculate', 200);
+  logApiRequest(keyId, userId, '/api/v1/calculate', 200, meta);
   return Response.json(
     {
       symbol: symbol.toUpperCase(),

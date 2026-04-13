@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest, extractRequestMeta } from '@/lib/apiKey';
 import { db } from '@/lib/db';
 import { positions } from '@/lib/schema';
 import { and, eq } from 'drizzle-orm';
@@ -39,6 +39,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   }
 
   const { userId, keyId } = result;
+  const meta = extractRequestMeta(req);
   const { id } = params;
 
   const deleted = await db
@@ -47,10 +48,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     .returning({ id: positions.id });
 
   if (deleted.length === 0) {
-    logApiRequest(keyId, userId, `/api/v1/positions/${id}`, 404);
+    logApiRequest(keyId, userId, `/api/v1/positions/${id}`, 404, meta);
     return Response.json({ error: 'Position not found' }, { status: 404, headers });
   }
 
-  logApiRequest(keyId, userId, `/api/v1/positions/${id}`, 200);
+  logApiRequest(keyId, userId, `/api/v1/positions/${id}`, 200, meta);
   return Response.json({ deleted: id }, { headers });
 }

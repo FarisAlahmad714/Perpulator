@@ -95,6 +95,11 @@ export async function GET() {
       createdAt: apiRequestLogs.createdAt,
       keyId: apiRequestLogs.keyId,
       userEmail: users.email,
+      userAgent: apiRequestLogs.userAgent,
+      clientName: apiRequestLogs.clientName,
+      origin: apiRequestLogs.origin,
+      ip: apiRequestLogs.ip,
+      country: apiRequestLogs.country,
     })
     .from(apiRequestLogs)
     .leftJoin(users, eq(apiRequestLogs.userId, users.id))

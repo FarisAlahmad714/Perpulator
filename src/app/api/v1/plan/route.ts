@@ -1,4 +1,4 @@
-import { validateApiKey, extractBearerToken, logApiRequest } from '@/lib/apiKey';
+import { validateApiKey, extractBearerToken, logApiRequest, extractRequestMeta } from '@/lib/apiKey';
 import { generatePlanTiers, PlanInput } from '@/utils/planCalculations';
 
 function corsHeaders() {
@@ -37,12 +37,13 @@ export async function POST(req: Request) {
   }
 
   const { userId, keyId } = result;
+  const meta = extractRequestMeta(req);
 
   let body: PlanInput;
   try {
     body = await req.json();
   } catch {
-    logApiRequest(keyId, userId, '/api/v1/plan', 400);
+    logApiRequest(keyId, userId, '/api/v1/plan', 400, meta);
     return Response.json({ error: 'Invalid JSON body' }, { status: 400, headers });
   }
 
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
   if (typeof volatility24h !== 'number' || volatility24h <= 0) errors.push('volatility24h must be a positive number (24h price change % of the asset)');
 
   if (errors.length > 0) {
-    logApiRequest(keyId, userId, '/api/v1/plan', 422);
+    logApiRequest(keyId, userId, '/api/v1/plan', 422, meta);
     return Response.json({ error: 'Validation failed', details: errors }, { status: 422, headers });
   }
 
@@ -65,6 +66,6 @@ export async function POST(req: Request) {
   // Strip UI-only fields (accentColor, icon) from the API response
   const cleaned = tiers.map(({ accentColor: _a, icon: _i, ...tier }) => tier);
 
-  logApiRequest(keyId, userId, '/api/v1/plan', 200);
+  logApiRequest(keyId, userId, '/api/v1/plan', 200, meta);
   return Response.json({ input: body, tiers: cleaned }, { headers });
 }

@@ -101,6 +101,18 @@ export async function POST(req: Request) {
     await sql`CREATE INDEX IF NOT EXISTS idx_logs_key_created ON "api_request_logs"("keyId", "createdAt")`;
     results.push('index ✓');
 
+    // Client tracking columns (added in v2)
+    await sql`ALTER TABLE "api_request_logs" ADD COLUMN IF NOT EXISTS "userAgent" text`;
+    results.push('api_request_logs.userAgent ✓');
+    await sql`ALTER TABLE "api_request_logs" ADD COLUMN IF NOT EXISTS "clientName" text`;
+    results.push('api_request_logs.clientName ✓');
+    await sql`ALTER TABLE "api_request_logs" ADD COLUMN IF NOT EXISTS "origin" text`;
+    results.push('api_request_logs.origin ✓');
+    await sql`ALTER TABLE "api_request_logs" ADD COLUMN IF NOT EXISTS "ip" text`;
+    results.push('api_request_logs.ip ✓');
+    await sql`ALTER TABLE "api_request_logs" ADD COLUMN IF NOT EXISTS "country" text`;
+    results.push('api_request_logs.country ✓');
+
     return Response.json({ ok: true, tables: results });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
